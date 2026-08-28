@@ -10,7 +10,7 @@ gestione-conti-main/
 ├── manifest.json                 — PWA manifest
 ├── sw.js                         — Service Worker
 ├── config/
-│   └── supabase-config.js        — window.SUPABASE_CONFIG {url, anonKey, pinEmail}  ⚠️ gitignored
+│   └── supabase-config.js        — window.SUPABASE_CONFIG {url, anonKey, pinEmail} (pubblico, committato)
 ├── assets/
 │   ├── app.js                    — Logica principale (auth Supabase + REST Postgres)
 │   └── style.css                 — Stili custom + dark mode + month picker + numpad PIN
@@ -48,4 +48,4 @@ gestione-conti-main/
 - Keepalive generico: le Actions variables del repo `SUPABASE_URL` e `SUPABASE_ANON_KEY` vanno impostate su GitHub (Settings → Secrets and variables → Actions → Variables), altrimenti il workflow si salta con un warning.
 - `script/seed_supabase.py` legge i JSON locali (gitignored) e li upserta con la `service_role` key.
 - I grafici in modalità "Gruppi" usano il campo `owner` (simone/michela/shared).
-- **Segreti**: `anonKey` e `pinEmail` sono nel config gitignored; `service_role` e `db_password` stanno SOLO in `Config Utility/supabase-secrets.json` — mai nel repo/progetto pubblico. I dati finanziari (JSON) non devono MAI essere committati.
+- **Segreti**: `config/supabase-config.js` è committato perché serve a GitHub Pages, ma contiene SOLO dati pubblici (url, anon key, `pinEmail` = email di login, funge da username). `service_role` e `db_password` stanno SOLO in `Config Utility/supabase-secrets.json` — mai nel repo/progetto pubblico. I dati finanziari (JSON) non devono MAI essere committati.

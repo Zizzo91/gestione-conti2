@@ -1,7 +1,5 @@
-# Config locale Supabase (anon key + URL progetto)
-# Non committare chiavi di servizio o password. L'anon key è pubblica di per sé,
-# ma tieniamo comunque fuori dal repo i file generati.
-config/supabase-config.js
+# Config Supabase: il file config/supabase-config.js È committato (serve a GitHub Pages,
+# contiene solo dati pubblici: URL, anon key, email di login del PIN). Mai sevice_role/db_password.
 *.local.json
 .DS_Store
 
