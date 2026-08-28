@@ -1,0 +1,10 @@
+# Config locale Supabase (anon key + URL progetto)
+# Non committare chiavi di servizio o password. L'anon key è pubblica di per sé,
+# ma tieniamo comunque fuori dal repo i file generati.
+config/supabase-config.js
+*.local.json
+.DS_Store
+
+# Dati finanziari personali: solo locale (origine del seed su Supabase)
+finance-backup.json
+data/*.json

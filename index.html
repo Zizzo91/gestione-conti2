@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="it" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestione Conti — Cloud Supabase</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+
+<body class="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+
+  <!-- PIN Modal -->
+  <div id="pinModal" class="modal fixed inset-0 bg-slate-900 z-[9998] items-center justify-center p-4">    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-xs text-center">
+      <div class="text-4xl mb-3">🔐</div>
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1" id="pinTitle">Inserisci PIN</h2>
+      <p class="text-sm text-gray-500 mb-6" id="pinSubtitle">Accesso protetto</p>
+      <div class="flex justify-center gap-3 mb-6" id="pinDots">
+        <div class="pin-dot" id="dot0"></div><div class="pin-dot" id="dot1"></div>
+        <div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div>
+      </div>
+      <div id="pinError" class="text-red-500 text-sm font-semibold mb-3 hidden">PIN errato. Riprova.</div>
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        <button class="pin-btn" onclick="pinInput('1')">1</button>
+        <button class="pin-btn" onclick="pinInput('2')">2</button>
+        <button class="pin-btn" onclick="pinInput('3')">3</button>
+        <button class="pin-btn" onclick="pinInput('4')">4</button>
+        <button class="pin-btn" onclick="pinInput('5')">5</button>
+        <button class="pin-btn" onclick="pinInput('6')">6</button>
+        <button class="pin-btn" onclick="pinInput('7')">7</button>
+        <button class="pin-btn" onclick="pinInput('8')">8</button>
+        <button class="pin-btn" onclick="pinInput('9')">9</button>
+        <button class="pin-btn text-gray-400" onclick="pinClear()">✕</button>
+        <button class="pin-btn" onclick="pinInput('0')">0</button>
+        <button class="pin-btn text-gray-400" onclick="pinBackspace()">⌫</button>
+      </div>
+      <div id="pinSetupNote" class="text-xs text-gray-400 hidden">Inserisci il PIN due volte per impostarlo</div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer"></div>
+
+  <!-- Header -->
+  <div class="text-center mb-8 relative">
+    <h1 class="text-3xl md:text-4xl font-bold text-indigo-900 dark:text-indigo-300 mb-2">Gestione Conti Personali</h1>
+    <div id="ghStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+      <span class="w-2 h-2 rounded-full bg-gray-400 mr-2 animate-pulse"></span> In attesa...
+    </div>
+    <div id="deviceAuthBar" class="hidden mt-2">
+      <span class="text-xs text-gray-500 dark:text-gray-400">Dispositivo non autorizzato:</span>
+      <button onclick="authMagicLink()"
+        class="ml-2 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-full transition-colors shadow-sm">🔑 Autorizza con email</button>
+    </div>
+    <div class="absolute right-0 top-0 flex items-center gap-2">
+      <button onclick="toggleDarkMode()" id="darkToggle" title="Dark/Light mode"
+        class="p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-yellow-300 hover:bg-indigo-100 transition-colors text-lg">🌙</button>
+      <button onclick="openPinSetup()" title="Imposta/Rimuovi PIN"
+        class="p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-indigo-300 hover:bg-indigo-100 transition-colors text-lg">🔐</button>
+      <button onclick="openBudgetModal()" title="Imposta soglie budget"
+        class="p-2 rounded-full bg-amber-50 dark:bg-slate-700 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-colors text-lg">🎯</button>
+      <button onclick="openAddAccountModal()" title="Aggiungi conto"
+        class="p-2 rounded-full bg-green-50 dark:bg-slate-700 text-green-600 dark:text-green-300 hover:bg-green-100 transition-colors text-lg font-bold">+</button>
+      <button onclick="printDashboard()" title="Esporta PDF / Stampa" class="no-print p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-indigo-300 hover:bg-indigo-100 transition-colors text-lg">🖨️</button>
+    </div>
+  </div>
+
+  <!-- Banner Alert Budget -->
+  <div id="budgetAlertBanner" class="hidden mb-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl"></div>
+
+  <!-- Widget Salute Finanziaria -->
+  <div id="dashboardWidget" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 hidden"></div>
+  <div id="dashboardSkeleton" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div class="skeleton h-28 lg:col-span-2 rounded-xl"></div>
+    <div class="skeleton h-28 rounded-xl"></div>
+    <div class="skeleton h-28 rounded-xl"></div>
+    <div class="skeleton h-28 rounded-xl"></div>
+  </div>
+
+  <!-- Inserimento Dati -->
+  <div class="section-card bg-indigo-50 border-indigo-100 relative overflow-hidden" id="entrySection">
+    <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-indigo-100 rounded-full opacity-50"></div>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 relative z-10">
+      <div class="mb-4 sm:mb-0">
+        <h2 class="text-2xl font-bold text-indigo-900 flex items-center flex-wrap gap-2">
+          Nuova Registrazione
+          <span id="liveTotalBadge" class="text-sm bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-mono font-bold border border-emerald-200 shadow-sm transition-transform duration-200">0,00 €</span>
+          <span id="liveMonthStatusBadge" class="live-month-status live-month-status-hidden"></span>
+        </h2>
+        <p class="text-sm text-indigo-600 mt-1">Inserisci i saldi del mese selezionato</p>
+      </div>
+
+      <!-- Custom Month Picker -->
+      <div class="flex flex-col items-end gap-2 mt-4 sm:mt-0">
+        <!-- Input nascosto (compatibilità con il resto del codice) -->
+        <input type="hidden" id="inputMonth">
+
+        <!-- Trigger button -->
+        <button type="button" id="monthPickerTrigger" onclick="toggleMonthPicker()"
+          class="month-picker-trigger">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span id="monthPickerLabel" class="font-bold text-indigo-900">Seleziona mese</span>
+          <svg class="w-4 h-4 text-indigo-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        <!-- Badge Modifica / Nuovo -->
+        <span id="monthStatusBadge" class="month-status-badge month-status-hidden"></span>
+
+        <!-- Dropdown picker -->
+        <div id="monthPickerDropdown" class="month-picker-dropdown hidden">
+          <!-- Header anno -->
+          <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+            <button type="button" onclick="changePickerYear(-1)" class="month-picker-nav">&#8249;</button>
+            <span id="monthPickerYear" class="text-sm font-bold text-gray-700"></span>
+            <button type="button" onclick="changePickerYear(+1)" class="month-picker-nav">&#8250;</button>
+          </div>
+          <!-- Griglia mesi -->
+          <div id="monthPickerGrid" class="month-picker-grid"></div>
+          <!-- Legenda -->
+          <div class="px-3 py-2 border-t border-gray-100 flex items-center gap-3 text-xs text-gray-400">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Già registrato</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-300 inline-block"></span>Selezionato</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <form id="entryForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8 relative z-10">
+      <div id="accountInputsContainer" class="contents"></div>
+      <div class="md:col-span-2 lg:col-span-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm relative focus-within:ring-2 focus-within:ring-indigo-100 transition-all mt-2 dark:bg-slate-700 dark:border-slate-600">
+        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Note e Spese Extra (Opzionale)</label>
+        <input type="text" id="inputNote" placeholder="Es. Assicurazione auto, dentista..." class="w-full text-sm text-gray-800 focus:outline-none border-b border-transparent focus:border-indigo-500 transition-colors bg-transparent py-2">
+      </div>
+    </form>
+    <div class="flex justify-center pt-6 border-t-2 border-indigo-100/60 relative z-10">
+      <button type="button" id="saveBtn" onclick="saveData()" class="btn-cta-save btn-base group">
+        <span id="saveBtnIcon" class="flex items-center"><svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></span>
+        <span id="saveBtnText">Salva e Sincronizza</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Budget -->
+  <div id="budgetModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4" onclick="handleBudgetBackdrop(event)">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center mb-1">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">🎯 Soglie Budget</h3>
+        <button onclick="closeBudgetModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">Mese: <span class="font-bold text-indigo-600" id="budgetModalMonth"></span> — Soglia minima per conto (0 = nessuna soglia)</p>
+      <div id="budgetInputsContainer" class="mb-5"></div>
+      <div class="flex gap-3">
+        <button onclick="closeBudgetModal()" class="flex-1 btn-base btn-outline" style="height:40px">Annulla</button>
+        <button onclick="saveBudgets()" class="flex-1 btn-base btn-primary" style="height:40px">💾 Salva soglie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Aggiungi Conto -->
+  <div id="addAccountModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4" onclick="handleAddAccountBackdrop(event)">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-white">+ Nuovo Conto</h3>
+        <button onclick="closeAddAccountModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1">Nome conto</label>
+          <input type="text" id="newAccountName" placeholder="Es. Trade Republic" class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-slate-700 dark:border-slate-500 dark:text-white">
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Intestatario</label>
+          <div class="flex flex-wrap gap-2" id="addAccountOwner">
+            <label class="radio-option"><input type="radio" name="newAccountOwner" value="simone" class="sr-only" checked><div class="radio-content">Simone</div></label>
+            <label class="radio-option"><input type="radio" name="newAccountOwner" value="michela" class="sr-only"><div class="radio-content">Michela</div></label>
+            <label class="radio-option"><input type="radio" name="newAccountOwner" value="shared" class="sr-only"><div class="radio-content">In comune</div></label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Tipo</label>
+          <div class="flex flex-wrap gap-2" id="addAccountType">
+            <label class="radio-option"><input type="radio" name="newAccountType" value="liquidity" class="sr-only" checked><div class="radio-content">CC / Conto</div></label>
+            <label class="radio-option"><input type="radio" name="newAccountType" value="savings" class="sr-only"><div class="radio-content">Risparmio</div></label>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeAddAccountModal()" class="flex-1 btn-base btn-outline" style="height:40px">Annulla</button>
+        <button onclick="addNewAccount()" class="flex-1 btn-base btn-primary" style="height:40px">+ Aggiungi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Calcolatrice -->
+  <div id="calcModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4" onclick="handleModalBackdrop(event)">
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-gray-800" id="calcModalTitle">Calcolatrice</h3>
+        <button onclick="closeCalculator()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Valore Attuale:</label>
+        <div class="text-2xl font-mono text-indigo-900 bg-gray-50 p-3 rounded border border-gray-200" id="calcCurrentValue">0,00 €</div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Aggiungi / Sottrai (usa - per sottrarre):</label>
+        <input type="text" inputmode="decimal" id="calcInputValue" placeholder="es. 235,32 o -50" class="w-full text-xl font-mono p-3 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-slate-700 dark:border-slate-500">
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeCalculator()" class="flex-1 btn-base btn-outline" style="height:40px">Annulla</button>
+        <button onclick="applyCalculator()" class="flex-1 btn-base btn-primary" style="height:40px">Applica</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grafici -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="section-card lg:col-span-2 mb-0">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+        <h2 class="text-xl font-bold text-gray-800">Andamento Finanziario</h2>
+        <div class="flex bg-gray-100 dark:bg-slate-700 p-1 rounded-full overflow-x-auto max-w-full">
+          <button onclick="setChartMode('single')"     id="tab-single"     class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Conti</button>
+          <button onclick="setChartMode('type')"       id="tab-type"       class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Tipologia</button>
+          <button onclick="setChartMode('aggregated')" id="tab-aggregated" class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Gruppi</button>
+          <button onclick="setChartMode('total')"      id="tab-total"      class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Totale</button>
+          <button onclick="setChartMode('variation')"  id="tab-variation"  class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Variazione</button>
+          <button onclick="setChartMode('compare')"    id="tab-compare"    class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Confronto Anni</button>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div class="flex bg-gray-100 dark:bg-slate-700 p-1 rounded-full gap-1">
+          <button onclick="setChartRange(3)"  id="range-3"  class="px-3 py-1 text-xs rounded-full transition-all">3M</button>
+          <button onclick="setChartRange(6)"  id="range-6"  class="px-3 py-1 text-xs rounded-full transition-all">6M</button>
+          <button onclick="setChartRange(12)" id="range-12" class="px-3 py-1 text-xs rounded-full transition-all">12M</button>
+          <button onclick="setChartRange(0)"  id="range-0"  class="px-3 py-1 text-xs rounded-full transition-all">Tutto</button>
+        </div>
+        <div id="chartFilterContainer" class="flex flex-col items-end">
+          <div class="flex flex-wrap justify-end gap-2" id="multiSelectFilters">
+            <label class="checkbox-badge cursor-pointer relative">
+              <input type="checkbox" id="filter-all" class="sr-only" checked onchange="toggleAllFilters(this)">
+              <div class="px-3 py-1.5 text-xs font-medium rounded-full border border-gray-200 bg-white text-gray-600 transition-colors">Tutti</div>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="relative h-80 w-full">
+        <canvas id="financeChart"></canvas>
+        <button id="resetZoomBtn" onclick="resetChartZoom()" title="Torna alla vista completa">🔍 Reset zoom</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-2 text-center">💡 Scorri con la rotella del mouse per zoomare · Trascina per spostarti nel tempo</p>
+    </div>
+    <div class="section-card mb-0 flex flex-col">
+      <h2 class="text-xl font-bold text-gray-800 mb-2">Composizione Patrimonio</h2>
+      <p class="text-sm text-gray-500 mb-4" id="donutMonthLabel">Dettaglio mese selezionato</p>
+      <div class="relative flex-grow min-h-[250px] w-full flex justify-center items-center">
+        <canvas id="donutChart"></canvas>
+      </div>
+      <p class="text-xs text-center text-gray-400 mt-2">💡 Clicca uno spicchio per filtrare il grafico</p>
+    </div>
+  </div>
+
+  <!-- Tabella Storico -->
+  <div class="section-card">
+    <div class="flex justify-between items-center mb-4">
+      <div class="flex items-center cursor-pointer group" onclick="toggleHistory()">
+        <h2 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors mr-3">Storico Mensile</h2>
+        <button id="toggleHistoryBtn" class="text-gray-400 group-hover:text-indigo-600 transition-colors bg-gray-50 p-1.5 rounded-full pointer-events-none">
+          <svg class="w-5 h-5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </button>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="exportToCSV()" class="no-print text-sm font-medium bg-green-50 text-green-700 hover:bg-green-600 hover:text-white border border-green-200 hover:border-green-600 py-1.5 px-3 rounded-md transition-colors flex items-center shadow-sm">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          CSV
+        </button>
+      </div>
+    </div>
+    <div id="historyContent" class="history-content">
+      <div class="overflow-x-auto rounded-lg border border-gray-200">
+        <table class="min-w-full bg-white text-sm">
+          <thead class="bg-gray-50 text-gray-600 uppercase text-xs font-semibold tracking-wider">
+            <tr>
+              <th class="py-3 px-4 text-left border-b sortable" onclick="sortTable('month')" data-col="month">Mese <span class="sort-icon"></span></th>
+              <th id="headerPlaceholder"></th>
+              <th class="py-3 px-4 text-right border-b font-bold text-indigo-700 sortable" onclick="sortTable('total')" data-col="total">Totale <span class="sort-icon"></span></th>
+              <th class="py-3 px-4 text-right border-b no-print">Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="text-center py-12 text-gray-400 hidden">Nessun dato presente.</div>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button id="fab" onclick="scrollToForm()" title="Nuova registrazione" class="no-print">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+  </button>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config/supabase-config.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: "0 12 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping progetto Supabase (free tier utilizza l'anti-pausa)
+        run: curl -sS -o /dev/null -w "HTTP %{http_code}\n" "https://gfglazxhxxplhoteaahr.supabase.co/rest/v1/entries?select=month&limit=1" -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ2xhenhoeHhwbGhvdGVhYWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNTMsImV4cCI6MjEwMzQ5MzM1M30.iVsfZ97Zrb9nK-hqyvPPs9SZKgqlV5n16LRzI14yWpY"
