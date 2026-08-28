@@ -44,7 +44,8 @@ async function saveSessionToStorage(session) {
 async function authFetch(path, opts) {
   const s = await getSessionFromStorage();
   if (!s || !s.access_token) throw new Error("UNR");
-  const r = await fetch(`${supabaseConfig.url}${path}`, Object.assign({}, opts, {
+  const u = /^https?:\/\//i.test(path) ? path : `${supabaseConfig.url}${path}`;
+  const r = await fetch(u, Object.assign({}, opts, {
     headers: Object.assign({}, (opts && opts.headers) || {}, {
       "apikey": supabaseConfig.anonKey,
       "Authorization": `Bearer ${s.access_token}`
@@ -157,14 +158,14 @@ async function db() {
   return supabaseConfig;
 }
 async function selectRows(table, sel, range) {
-  const cfg = await db();
-  const url = `${cfg.url}/rest/v1/${table}?select=${sel}` + (range ? `&order=${range}` : "");
-  const r = await authFetch(url, {});
+  await db();
+  const path = `/rest/v1/${table}?select=${sel}` + (range ? `&order=${range}` : "");
+  const r = await authFetch(path, {});
   return await r.json();
 }
 async function upsertRows(table, rows, onConflict) {
-  const cfg = await db();
-  const r = await authFetch(`${cfg.url}/rest/v1/${table}`, {
+  await db();
+  const r = await authFetch(`/rest/v1/${table}`, {
     method: "POST",
     headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
     body: JSON.stringify(rows)
@@ -173,8 +174,8 @@ async function upsertRows(table, rows, onConflict) {
   return r;
 }
 async function deleteRows(table, filter) {
-  const cfg = await db();
-  const r = await authFetch(`${cfg.url}/rest/v1/${table}?${filter}`, {
+  await db();
+  const r = await authFetch(`/rest/v1/${table}?${filter}`, {
     method: "DELETE",
     headers: { "Prefer": "return=minimal" }
   });
@@ -445,7 +446,13 @@ async function startApp() {
   await loadData();
   await loadBudgets();
   const monthEl = document.getElementById("inputMonth");
-  monthEl.value = new Date().toISOString().slice(0,7);
+  const nowMonth = new Date().toISOString().slice(0,7);
+  let startMonth = nowMonth;
+  if (!appData.some(d => d.month === nowMonth)) {
+    const last = appData.slice().sort((a,b) => b.month.localeCompare(a.month))[0];
+    if (last) startMonth = last.month;
+  }
+  monthEl.value = startMonth;
   document.getElementById('monthPickerLabel').textContent = formatMonthLabel(monthEl.value);
   monthEl.addEventListener("change", ()=>{
     renderDashboard();
@@ -778,9 +785,15 @@ async function loadData() {
   try {
     if (await getSessionFromStorage()) {
       const rows = await selectRows("entries", "month,values,note", "month");
-      appData = Array.isArray(rows) ? rows.map(r => ({ month: r.month, values: r.values || {}, note: r.note || "" })) : [];
+      const cloud = Array.isArray(rows) ? rows.map(r => ({ month: r.month, values: r.values || {}, note: r.note || "" })) : [];
+      let local = [];
+      const s = localStorage.getItem("financeApp_data");
+      if (s) { try { local = JSON.parse(s); } catch(_) {} }
+      const byMonth = new Map(cloud.map(d => [d.month, d]));
+      (Array.isArray(local) ? local : []).forEach(d => { if (d && d.month && !byMonth.has(d.month)) byMonth.set(d.month, d); });
+      appData = [...byMonth.values()].sort((a,b) => a.month.localeCompare(b.month));
       localStorage.setItem("financeApp_data", JSON.stringify(appData));
-      setStatus(Array.isArray(appData) && appData.length>0 ? "Sincronizzato" : "Cloud collegato", "success");
+      setStatus(appData.length>0 ? "Sincronizzato" : "Cloud collegato", "success");
     } else {
       const s=localStorage.getItem("financeApp_data");
       if(s){appData=JSON.parse(s);setStatus("Modalità offline (nessun login)","neutral");}
