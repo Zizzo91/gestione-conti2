@@ -167,7 +167,7 @@ async function upsertRows(table, rows, onConflict) {
   await db();
   const r = await authFetch(`/rest/v1/${table}`, {
     method: "POST",
-    headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+    headers: { "Prefer": "resolution=merge-duplicates,return=minimal", "Content-Type": "application/json" },
     body: JSON.stringify(rows)
   });
   if (!r.ok) throw new Error(`upsert ${table} -> HTTP ${r.status}`);
