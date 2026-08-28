@@ -112,6 +112,10 @@ async function doPinLogin() {
       if (su.error) {
         setLoginBusy(false);
         const m = (su.error.message || "").toLowerCase();
+        if (/rate limit|troppi tentativi/i.test(m)) {
+          showLoginError("Limite momentaneo di Supabase: riprova tra circa un'ora con lo stesso PIN.");
+          return;
+        }
         if (/weak_password|almeno 8|8 character|too short/i.test(m)) {
           showLoginError("Supabase richiede una password più lunga: imposta 'Minimum password length' a 6 nel dashboard Auth.");
           return;
