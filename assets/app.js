@@ -443,6 +443,8 @@ async function applyAuthUI() {
 
 // Avvio dell'app dopo il login (carica e renderizza i dati)
 async function startApp() {
+  await loadAccounts();
+  initUI();
   await loadData();
   await loadBudgets();
   const monthEl = document.getElementById("inputMonth");
@@ -466,6 +468,7 @@ async function startApp() {
   updateLiveTotal();
   updateMonthBadge();
   setChartRange(0);
+  fillFormWithEntry(appData.find(d => d.month === monthEl.value) || null);
 }
 
 // ─── STATUS ───────────────────────────────────────────────────────────────────
