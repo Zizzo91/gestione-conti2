@@ -66,25 +66,83 @@ async function checkAuthorized() {
   } catch(_) {}
   return false;
 }
-async function startMagicLinkFlow(email) {
-  const sdk = getSupabaseSdk();
-  if (!sdk) throw new Error("SDK non disponibile");
-  const { error } = await sdk.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname, shouldCreateUser: true }
-  });
-  if (error) throw error;
-  localStorage.setItem("financeApp_otpEmail", email);
+// ─── LOGIN: PIN 6 CIFRE (il PIN è la password dell'account Supabase) ─────────────
+const PIN_LEN = 6;
+let pinBuffer = "";
+
+function pinPad(d) {
+  if (pinBuffer.length >= PIN_LEN) return;
+  pinBuffer += d;
+  updateLoginDots();
+  if (pinBuffer.length === PIN_LEN) setTimeout(() => doPinLogin(), 180);
 }
-async function storeTinyTokenFromUrl() {
-  // Con l'SDK il magic link viene gestito automaticamente: session salvata al primo getSession().
-  const s = await getSessionFromStorage();
-  return !!(s && s.access_token);
+function pinPadBackspace() { pinBuffer = pinBuffer.slice(0, -1); updateLoginDots(); }
+function pinPadClear()      { pinBuffer = ""; updateLoginDots(); hideLoginError(); }
+function updateLoginDots() {
+  for (let i = 0; i < PIN_LEN; i++) {
+    const el = document.getElementById("ldot" + i);
+    if (el) el.classList.toggle("filled", i < pinBuffer.length);
+  }
 }
-function clearAuthorization() {
+function showLoginError(msg) {
+  const el = document.getElementById("loginError");
+  if (el) { el.textContent = msg; el.classList.remove("hidden"); }
+}
+function hideLoginError() {
+  const el = document.getElementById("loginError");
+  if (el) el.classList.add("hidden");
+}
+function setLoginBusy(busy) {
+  const el = document.getElementById("loginTitle");
+  if (el) el.textContent = busy ? "Verifica..." : "Accesso protetto";
+  hideLoginError();
+}
+
+async function doPinLogin() {
   const sdk = getSupabaseSdk();
-  if (sdk) { try { sdk.auth.signOut(); } catch(e) {} }
-  localStorage.removeItem("financeApp_otpEmail");
+  const email = (supabaseConfig && supabaseConfig.pinEmail || "").trim().toLowerCase();
+  if (!email) { showLoginError("Config mancante (pinEmail)."); return; }
+  if (!sdk)   { showLoginError("SDK non disponibile."); return; }
+  const password = pinBuffer; pinBuffer = ""; updateLoginDots();
+  setLoginBusy(true);
+  try {
+    let { data, error } = await sdk.auth.signInWithPassword({ email, password });
+    if (error && /invalid login credentials/i.test(error.message || "")) {
+      const su = await sdk.auth.signUp({ email, password });
+      if (su.error) {
+        setLoginBusy(false);
+        const m = (su.error.message || "").toLowerCase();
+        if (/weak_password|almeno 8|8 character|too short/i.test(m)) {
+          showLoginError("Supabase richiede una password più lunga: imposta 'Minimum password length' a 6 nel dashboard Auth.");
+          return;
+        }
+        if (/already registered/i.test(m)) showLoginError("PIN errato.");
+        else showLoginError(su.error.message || "Errore");
+        return;
+      }
+      if (!su.data || !su.data.session) {
+        setLoginBusy(false);
+        showLoginError("Account creato: verifica l'email di conferma, poi riprova con lo stesso PIN.");
+        return;
+      }
+      data = su.data;
+    }
+    if (error) { setLoginBusy(false); showLoginError(error.message || "Errore"); return; }
+    await applyAuthUI();
+    await startApp();
+  } catch(e) {
+    setLoginBusy(false);
+    showLoginError(e && e.message ? e.message : "Errore");
+  }
+}
+
+async function clearAuthorization() {
+  const sdk = getSupabaseSdk();
+  try { if (sdk) await sdk.auth.signOut(); } catch(e) {}
+}
+async function logout() {
+  await clearAuthorization();
+  window.location.reload();
 }
 
 // ─── DATABASE (REST/PostgREST) ────────────────────────────────────────────────
@@ -230,14 +288,6 @@ function setModalClass(id, open) {
   document.getElementById(id).classList.toggle("active", open);
 }
 
-// ─── HELPER: CONFIGURA PIN MODAL ──────────────────────────────────────────────
-function setPinModal(title, subtitle, showNote) {
-  document.getElementById("pinTitle").textContent    = title;
-  document.getElementById("pinSubtitle").textContent = subtitle;
-  document.getElementById("pinSetupNote").classList.toggle("hidden", !showNote);
-  document.getElementById("pinError").classList.add("hidden");
-}
-
 // ─── DARK MODE ────────────────────────────────────────────────────────────────
 function applyDarkMode(dark) {
   document.documentElement.classList.toggle("dark", dark);
@@ -248,76 +298,6 @@ function applyDarkMode(dark) {
 }
 function toggleDarkMode() {
   applyDarkMode(!document.documentElement.classList.contains("dark"));
-}
-
-// ─── PIN ──────────────────────────────────────────────────────────────────────
-let pinBuffer = "";
-let pinMode   = "unlock";
-let pinTemp   = "";
-
-async function hashPin(pin) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-function pinInput(digit) {
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += digit;
-  updatePinDots();
-  if (pinBuffer.length === 4) setTimeout(checkPin, 200);
-}
-function pinBackspace() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); }
-function pinClear()     { pinBuffer = ""; updatePinDots(); }
-function updatePinDots() {
-  for (let i=0;i<4;i++) document.getElementById("dot"+i).classList.toggle("filled", i < pinBuffer.length);
-}
-async function checkPin() {
-  if (pinMode === "unlock") {
-    const stored = localStorage.getItem("appPin");
-    const hash   = await hashPin(pinBuffer);
-    if (hash === stored) {
-      setModalClass("pinModal", false);
-      showToast("Accesso effettuato!", "success");
-    } else {
-      document.getElementById("pinError").classList.remove("hidden");
-      pinBuffer = ""; updatePinDots();
-      setTimeout(()=>document.getElementById("pinError").classList.add("hidden"), 2000);
-    }
-  } else if (pinMode === "setup1") {
-    pinTemp = pinBuffer; pinBuffer = ""; updatePinDots();
-    pinMode = "setup2";
-    document.getElementById("pinSubtitle").textContent = "Conferma il nuovo PIN";
-  } else if (pinMode === "setup2") {
-    if (pinBuffer === pinTemp) {
-      const hash = await hashPin(pinBuffer);
-      localStorage.setItem("appPin", hash);
-      setModalClass("pinModal", false);
-      showToast("PIN impostato con successo!", "success");
-    } else {
-      document.getElementById("pinError").textContent = "I PIN non corrispondono.";
-      document.getElementById("pinError").classList.remove("hidden");
-      pinBuffer = ""; pinTemp = ""; pinMode = "setup1";
-      document.getElementById("pinSubtitle").textContent = "Inserisci il nuovo PIN";
-      updatePinDots();
-      setTimeout(()=>document.getElementById("pinError").classList.add("hidden"), 2500);
-    }
-  }
-}
-function openPinSetup() {
-  const hasPin = !!localStorage.getItem("appPin");
-  if (hasPin) {
-    if (confirm("Vuoi rimuovere il PIN di protezione?")) { localStorage.removeItem("appPin"); showToast("PIN rimosso.", "info"); }
-    return;
-  }
-  pinMode = "setup1"; pinBuffer = ""; updatePinDots();
-  setPinModal("Imposta PIN", "Inserisci il nuovo PIN (4 cifre)", true);
-  setModalClass("pinModal", true);
-}
-function checkPinOnLoad() {
-  const stored = localStorage.getItem("appPin");
-  if (!stored) return;
-  pinMode = "unlock"; pinBuffer = ""; updatePinDots();
-  setPinModal("Inserisci PIN", "Accesso protetto", false);
-  setModalClass("pinModal", true);
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
@@ -374,26 +354,9 @@ function fillFormWithEntry(entry) {
 document.addEventListener("DOMContentLoaded", async () => {
   await loadAccounts();
   applyDarkMode(localStorage.getItem("darkMode") === "1");
-  checkPinOnLoad();
   initUI();
-  checkMagicLink();
-  await loadData();
-  await loadBudgets();
-  const monthEl = document.getElementById("inputMonth");
-  monthEl.value = new Date().toISOString().slice(0,7);
-  document.getElementById('monthPickerLabel').textContent = formatMonthLabel(monthEl.value);
-  monthEl.addEventListener("change", ()=>{
-    renderDashboard();
-    renderDonutChart();
-    populateBudgetForm();
-    updateMonthBadge();
-    const lbl = document.getElementById('monthPickerLabel'); if (lbl) lbl.textContent = formatMonthLabel(monthEl.value);
-    fillFormWithEntry(appData.find(d => d.month === monthEl.value) || null);
-  });
-  renderDashboard();
-  updateLiveTotal();
-  updateMonthBadge();
-  setChartRange(0);
+  const authed = await checkInitialAuth();
+  if (authed) await startApp();
   document.getElementById("calcInputValue").addEventListener("keypress", e=>{ if(e.key==="Enter") applyCalculator(); });
   document.addEventListener("keydown", e=>{ if(e.key==="Escape") { closeCalculator(); closeBudgetModal(); } });
 });
@@ -449,46 +412,49 @@ document.addEventListener('click', e => {
   if (dp && trigger && !dp.contains(e.target) && !trigger.contains(e.target)) dp.classList.add('hidden');
 });
 
-// ─── MAGIC LINK SUPABASE ──────────────────────────────────────────────────────
-async function checkMagicLink() {
-  // Con l'SDK il magic link viene gestito automaticamente: al primo getSession()
-  // il client recupera la sessione dal redirect (fragment) o dal localStorage.
-  const justLinked = !!localStorage.getItem("financeApp_justLinked");
-  localStorage.removeItem("financeApp_justLinked");
+// ─── AUTH CHECK ALL'AVVIO (sessione persistente) ──────────────────────────────
+async function checkInitialAuth() {
+  // Ripulisce eventuali residui del vecchio PIN client-side
+  try { localStorage.removeItem("appPin"); } catch(e) {}
   const s = await getSessionFromStorage();
   if (s && s.access_token) {
     const ok = await checkAuthorized();
-    if (ok) {
-      if (justLinked) showToast("Dispositivo autorizzato con successo!", "success", 5000);
-    } else {
-      await saveSessionToStorage(null);
-    }
+    if (ok) return applyAuthUI();
+    await saveSessionToStorage(null);
   }
-  await refreshDeviceUI();
+  return applyAuthUI();
 }
 
-// Avvia il flusso: chiede l'email e invia il magic link
-async function authMagicLink() {
-  const email = (localStorage.getItem("financeApp_otpEmail") || "").trim();
-  const input = window.prompt("Autorizza questo dispositivo: inserisci la tua email.\nRiceverai un link di accesso con cui sbloccherai i dati solo su questo dispositivo.", email || "");
-  if (!input) return;
-  const em = input.trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { showToast("Email non valida.", "error"); return; }
-  try {
-    await startMagicLinkFlow(em);
-    localStorage.setItem("financeApp_justLinked", "1");
-    showToast("Link inviato a " + em + " — apri l'email per autorizzare.", "success", 7000);
-  } catch(e) {
-    showToast("Invio fallito: " + e.message, "error", 6000);
-  }
+// Mostra/nasconde la schermata di login in base alla sessione
+async function applyAuthUI() {
+  const authed = !!(await getSessionFromStorage());
+  const ls = document.getElementById("loginScreen");
+  const lo = document.getElementById("logoutBtn");
+  if (ls) ls.classList.toggle("hidden", authed);
+  if (lo) lo.classList.toggle("hidden", !authed);
+  if (authed) setStatus("Cloud collegato", "success");
+  return authed;
 }
 
-// Eseguito dopo login/logout per mostrare la barra di autorizzazione
-async function refreshDeviceUI() {
-  const authorized = !!(await getSessionFromStorage());
-  const bar = document.getElementById("deviceAuthBar");
-  if (bar) bar.classList.toggle("hidden", authorized);
-  if (authorized) setStatus("Cloud collegato", "success");
+// Avvio dell'app dopo il login (carica e renderizza i dati)
+async function startApp() {
+  await loadData();
+  await loadBudgets();
+  const monthEl = document.getElementById("inputMonth");
+  monthEl.value = new Date().toISOString().slice(0,7);
+  document.getElementById('monthPickerLabel').textContent = formatMonthLabel(monthEl.value);
+  monthEl.addEventListener("change", ()=>{
+    renderDashboard();
+    renderDonutChart();
+    populateBudgetForm();
+    updateMonthBadge();
+    const lbl = document.getElementById('monthPickerLabel'); if (lbl) lbl.textContent = formatMonthLabel(monthEl.value);
+    fillFormWithEntry(appData.find(d => d.month === monthEl.value) || null);
+  });
+  renderDashboard();
+  updateLiveTotal();
+  updateMonthBadge();
+  setChartRange(0);
 }
 
 // ─── STATUS ───────────────────────────────────────────────────────────────────

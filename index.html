@@ -17,31 +17,32 @@
 
 <body class="p-4 md:p-8 max-w-7xl mx-auto pb-24">
 
-  <!-- PIN Modal -->
-  <div id="pinModal" class="modal fixed inset-0 bg-slate-900 z-[9998] items-center justify-center p-4">    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-xs text-center">
-      <div class="text-4xl mb-3">🔐</div>
-      <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1" id="pinTitle">Inserisci PIN</h2>
-      <p class="text-sm text-gray-500 mb-6" id="pinSubtitle">Accesso protetto</p>
-      <div class="flex justify-center gap-3 mb-6" id="pinDots">
-        <div class="pin-dot" id="dot0"></div><div class="pin-dot" id="dot1"></div>
-        <div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div>
+  <!-- Login screen (PIN 6 cifre, autenticazione Supabase) -->
+  <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-xs text-center">
+      <div class="text-4xl mb-3">🔒</div>
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1" id="loginTitle">Accesso protetto</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6" id="loginSubtitle">Inserisci il PIN a 6 cifre</p>
+      <div class="flex justify-center gap-3 mb-6" id="loginDots">
+        <div class="pin-dot" id="ldot0"></div><div class="pin-dot" id="ldot1"></div>
+        <div class="pin-dot" id="ldot2"></div><div class="pin-dot" id="ldot3"></div>
+        <div class="pin-dot" id="ldot4"></div><div class="pin-dot" id="ldot5"></div>
       </div>
-      <div id="pinError" class="text-red-500 text-sm font-semibold mb-3 hidden">PIN errato. Riprova.</div>
+      <div id="loginError" class="text-red-500 text-sm font-semibold mb-3 hidden">PIN errato. Riprova.</div>
       <div class="grid grid-cols-3 gap-3 mb-4">
-        <button class="pin-btn" onclick="pinInput('1')">1</button>
-        <button class="pin-btn" onclick="pinInput('2')">2</button>
-        <button class="pin-btn" onclick="pinInput('3')">3</button>
-        <button class="pin-btn" onclick="pinInput('4')">4</button>
-        <button class="pin-btn" onclick="pinInput('5')">5</button>
-        <button class="pin-btn" onclick="pinInput('6')">6</button>
-        <button class="pin-btn" onclick="pinInput('7')">7</button>
-        <button class="pin-btn" onclick="pinInput('8')">8</button>
-        <button class="pin-btn" onclick="pinInput('9')">9</button>
-        <button class="pin-btn text-gray-400" onclick="pinClear()">✕</button>
-        <button class="pin-btn" onclick="pinInput('0')">0</button>
-        <button class="pin-btn text-gray-400" onclick="pinBackspace()">⌫</button>
+        <button class="pin-btn" onclick="pinPad('1')">1</button>
+        <button class="pin-btn" onclick="pinPad('2')">2</button>
+        <button class="pin-btn" onclick="pinPad('3')">3</button>
+        <button class="pin-btn" onclick="pinPad('4')">4</button>
+        <button class="pin-btn" onclick="pinPad('5')">5</button>
+        <button class="pin-btn" onclick="pinPad('6')">6</button>
+        <button class="pin-btn" onclick="pinPad('7')">7</button>
+        <button class="pin-btn" onclick="pinPad('8')">8</button>
+        <button class="pin-btn" onclick="pinPad('9')">9</button>
+        <button class="pin-btn text-gray-400" onclick="pinPadClear()">✕</button>
+        <button class="pin-btn" onclick="pinPad('0')">0</button>
+        <button class="pin-btn text-gray-400" onclick="pinPadBackspace()">⌫</button>
       </div>
-      <div id="pinSetupNote" class="text-xs text-gray-400 hidden">Inserisci il PIN due volte per impostarlo</div>
     </div>
   </div>
 
@@ -54,16 +55,11 @@
     <div id="ghStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
       <span class="w-2 h-2 rounded-full bg-gray-400 mr-2 animate-pulse"></span> In attesa...
     </div>
-    <div id="deviceAuthBar" class="hidden mt-2">
-      <span class="text-xs text-gray-500 dark:text-gray-400">Dispositivo non autorizzato:</span>
-      <button onclick="authMagicLink()"
-        class="ml-2 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-full transition-colors shadow-sm">🔑 Autorizza con email</button>
-    </div>
     <div class="absolute right-0 top-0 flex items-center gap-2">
       <button onclick="toggleDarkMode()" id="darkToggle" title="Dark/Light mode"
         class="p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-yellow-300 hover:bg-indigo-100 transition-colors text-lg">🌙</button>
-      <button onclick="openPinSetup()" title="Imposta/Rimuovi PIN"
-        class="p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-indigo-300 hover:bg-indigo-100 transition-colors text-lg">🔐</button>
+      <button onclick="logout()" id="logoutBtn" title="Esci"
+        class="hidden p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-indigo-300 hover:bg-indigo-100 transition-colors text-lg">🚪</button>
       <button onclick="openBudgetModal()" title="Imposta soglie budget"
         class="p-2 rounded-full bg-amber-50 dark:bg-slate-700 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-colors text-lg">🎯</button>
       <button onclick="openAddAccountModal()" title="Aggiungi conto"
