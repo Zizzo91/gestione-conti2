@@ -3,7 +3,12 @@ name: Supabase keepalive
 on:
   schedule:
     - cron: "0 12 * * 1,4"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Endpoint da pingare (default entries)"
+        required: false
+        default: "entries?select=month&limit=1"
 
 env:
   SUPABASE_URL: ${{ vars.SUPABASE_URL }}
