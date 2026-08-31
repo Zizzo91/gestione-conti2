@@ -360,8 +360,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadAccounts();
   applyDarkMode(localStorage.getItem("darkMode") === "1");
   initUI();
-  const authed = await checkInitialAuth();
-  if (authed) await startApp();
   document.getElementById("calcInputValue").addEventListener("keypress", e=>{ if(e.key==="Enter") applyCalculator(); });
   document.addEventListener("keydown", e=>{ if(e.key==="Escape") { closeCalculator(); closeBudgetModal(); } });
 });
@@ -418,18 +416,6 @@ document.addEventListener('click', e => {
 });
 
 // ─── AUTH CHECK ALL'AVVIO (sessione persistente) ──────────────────────────────
-async function checkInitialAuth() {
-  // Ripulisce eventuali residui del vecchio PIN client-side
-  try { localStorage.removeItem("appPin"); } catch(e) {}
-  const s = await getSessionFromStorage();
-  if (s && s.access_token) {
-    const ok = await checkAuthorized();
-    if (ok) return applyAuthUI();
-    await saveSessionToStorage(null);
-  }
-  return applyAuthUI();
-}
-
 // Mostra/nasconde la schermata di login in base alla sessione
 async function applyAuthUI() {
   const authed = !!(await getSessionFromStorage());
@@ -456,14 +442,17 @@ async function startApp() {
   }
   monthEl.value = startMonth;
   document.getElementById('monthPickerLabel').textContent = formatMonthLabel(monthEl.value);
-  monthEl.addEventListener("change", ()=>{
-    renderDashboard();
-    renderDonutChart();
-    populateBudgetForm();
-    updateMonthBadge();
-    const lbl = document.getElementById('monthPickerLabel'); if (lbl) lbl.textContent = formatMonthLabel(monthEl.value);
-    fillFormWithEntry(appData.find(d => d.month === monthEl.value) || null);
-  });
+  if (!startApp._monthBound) {
+    startApp._monthBound = true;
+    monthEl.addEventListener("change", ()=>{
+      renderDashboard();
+      renderDonutChart();
+      populateBudgetForm();
+      updateMonthBadge();
+      const lbl = document.getElementById('monthPickerLabel'); if (lbl) lbl.textContent = formatMonthLabel(monthEl.value);
+      fillFormWithEntry(appData.find(d => d.month === monthEl.value) || null);
+    });
+  }
   renderDashboard();
   updateLiveTotal();
   updateMonthBadge();
