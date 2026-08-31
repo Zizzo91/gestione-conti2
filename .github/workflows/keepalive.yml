@@ -3,7 +3,7 @@ name: Supabase keepalive
 on:
   schedule:
     - cron: "0 12 * * 1,4"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 env:
   SUPABASE_URL: ${{ vars.SUPABASE_URL }}
