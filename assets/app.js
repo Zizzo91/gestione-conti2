@@ -1260,3 +1260,16 @@ function updateChart(){
   chartInstance.data.datasets=datasets;
   chartInstance.update();
 }
+
+// ─── Tastiera fisica durante il login PIN (opzionale: aggiuntiva al tastierino/touch) ─────────
+document.addEventListener("keydown", function(e){
+  const ls = document.getElementById("loginScreen");
+  if (!ls || ls.classList.contains("hidden")) return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (e.repeat) return; // ignora la ripetizione di un tasto tenuto premuto
+  if (/^[0-9]$/.test(e.key)) { e.preventDefault(); pinPad(e.key); }
+  else if (e.key === "Backspace") { e.preventDefault(); pinPadBackspace(); }
+  else if (e.key === "Escape") { e.preventDefault(); pinPadClear(); }
+  else if (e.key === "Enter" && pinBuffer.length > 0) { e.preventDefault(); doPinLogin(); }
+});
