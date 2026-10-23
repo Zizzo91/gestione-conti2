@@ -2,7 +2,7 @@
 <html lang="it" class="">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Gestione Conti — Cloud Supabase</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💶</text></svg>">
@@ -16,12 +16,12 @@
   <link rel="stylesheet" href="assets/style.css">
 </head>
 
-<body class="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+<body class="max-w-7xl mx-auto">
 
   <!-- Login screen (PIN 6 cifre, autenticazione Supabase) -->
-  <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-[9999] flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-xs text-center">
-      <div class="text-4xl mb-3">🔒</div>
+  <div id="loginScreen" class="login-backdrop fixed inset-0 bg-slate-900 z-[9999] flex items-center justify-center p-4">
+    <div id="loginCard" class="login-card rounded-2xl shadow-2xl p-8 w-full max-w-xs text-center">
+      <div class="login-badge" aria-hidden="true">🔒</div>
       <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1" id="loginTitle">Accesso protetto</h2>
       <p class="text-sm text-gray-500 dark:text-gray-400 mb-6" id="loginSubtitle">Inserisci il PIN a 6 cifre</p>
       <div class="flex justify-center gap-3 mb-6" id="loginDots">
@@ -29,7 +29,7 @@
         <div class="pin-dot" id="ldot2"></div><div class="pin-dot" id="ldot3"></div>
         <div class="pin-dot" id="ldot4"></div><div class="pin-dot" id="ldot5"></div>
       </div>
-      <div id="loginError" class="text-red-500 text-sm font-semibold mb-3 hidden">PIN errato. Riprova.</div>
+      <div id="loginError" role="alert" class="text-red-500 text-sm font-semibold mb-3 hidden">PIN errato. Riprova.</div>
       <div class="grid grid-cols-3 gap-3 mb-4">
         <button class="pin-btn" onclick="pinPad('1')">1</button>
         <button class="pin-btn" onclick="pinPad('2')">2</button>
@@ -40,34 +40,42 @@
         <button class="pin-btn" onclick="pinPad('7')">7</button>
         <button class="pin-btn" onclick="pinPad('8')">8</button>
         <button class="pin-btn" onclick="pinPad('9')">9</button>
-        <button class="pin-btn text-gray-400" onclick="pinPadClear()">✕</button>
+        <button class="pin-btn text-gray-400" onclick="pinPadClear()" aria-label="Cancella PIN">✕</button>
         <button class="pin-btn" onclick="pinPad('0')">0</button>
-        <button class="pin-btn text-gray-400" onclick="pinPadBackspace()">⌫</button>
+        <button class="pin-btn text-gray-400" onclick="pinPadBackspace()" aria-label="Cancella ultima cifra">⌫</button>
       </div>
     </div>
   </div>
 
   <!-- Toast Container -->
-  <div id="toastContainer"></div>
+  <div id="toastContainer" role="status" aria-live="polite" aria-atomic="false"></div>
 
   <!-- Header -->
-  <div class="text-center mb-8 relative">
-    <h1 class="text-3xl md:text-4xl font-bold text-indigo-900 dark:text-indigo-300 mb-2">Gestione Conti Personali</h1>
-    <div id="ghStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-      <span class="w-2 h-2 rounded-full bg-gray-400 mr-2 animate-pulse"></span> In attesa...
+  <header class="app-header">
+    <div class="app-header-main">
+      <div class="app-brand">
+        <div class="app-logo" aria-hidden="true">€</div>
+        <div class="min-w-0">
+          <h1 class="app-title">Gestione Conti</h1>
+          <div id="ghStatus" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">
+            <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5 animate-pulse"></span> In attesa...
+          </div>
+        </div>
+      </div>
+      <nav class="app-actions" aria-label="Azioni applicazione">
+        <button onclick="toggleDarkMode()" id="darkToggle" title="Dark/Light mode" aria-label="Attiva o disattiva modalità scura"
+          class="icon-btn"><span id="darkToggleIcon" aria-hidden="true">🌙</span></button>
+        <button onclick="logout()" id="logoutBtn" title="Esci" aria-label="Esci"
+          class="icon-btn hidden">🚪</button>
+        <button onclick="openBudgetModal()" title="Imposta soglie budget" aria-label="Imposta soglie budget"
+          class="icon-btn icon-btn-amber">🎯</button>
+        <button onclick="openAddAccountModal()" title="Aggiungi conto" aria-label="Aggiungi conto"
+          class="icon-btn icon-btn-green">+</button>
+        <button onclick="printDashboard()" title="Esporta PDF / Stampa" aria-label="Esporta PDF o stampa"
+          class="icon-btn no-print">🖨️</button>
+      </nav>
     </div>
-    <div class="absolute right-0 top-0 flex items-center gap-2">
-      <button onclick="toggleDarkMode()" id="darkToggle" title="Dark/Light mode"
-        class="p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-yellow-300 hover:bg-indigo-100 transition-colors text-lg">🌙</button>
-      <button onclick="logout()" id="logoutBtn" title="Esci"
-        class="hidden p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-indigo-300 hover:bg-indigo-100 transition-colors text-lg">🚪</button>
-      <button onclick="openBudgetModal()" title="Imposta soglie budget"
-        class="p-2 rounded-full bg-amber-50 dark:bg-slate-700 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-colors text-lg">🎯</button>
-      <button onclick="openAddAccountModal()" title="Aggiungi conto"
-        class="p-2 rounded-full bg-green-50 dark:bg-slate-700 text-green-600 dark:text-green-300 hover:bg-green-100 transition-colors text-lg font-bold">+</button>
-      <button onclick="printDashboard()" title="Esporta PDF / Stampa" class="no-print p-2 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-indigo-300 hover:bg-indigo-100 transition-colors text-lg">🖨️</button>
-    </div>
-  </div>
+  </header>
 
   <!-- Banner Alert Budget -->
   <div id="budgetAlertBanner" class="hidden mb-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl"></div>
@@ -82,13 +90,12 @@
   </div>
 
   <!-- Inserimento Dati -->
-  <div class="section-card bg-indigo-50 border-indigo-100 relative overflow-hidden" id="entrySection">
-    <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-indigo-100 rounded-full opacity-50"></div>
+  <div class="section-card entry-section" id="entrySection">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 relative z-10">
       <div class="mb-4 sm:mb-0">
-        <h2 class="text-2xl font-bold text-indigo-900 flex items-center flex-wrap gap-2">
+        <h2 class="entry-title">
           Nuova Registrazione
-          <span id="liveTotalBadge" class="text-sm bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-mono font-bold border border-emerald-200 shadow-sm transition-transform duration-200">0,00 €</span>
+          <span id="liveTotalBadge" class="text-sm bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full tabular-nums font-bold border border-emerald-200 shadow-sm transition-transform duration-200">0,00 €</span>
           <span id="liveMonthStatusBadge" class="live-month-status live-month-status-hidden"></span>
         </h2>
         <p class="text-sm text-indigo-600 mt-1">Inserisci i saldi del mese selezionato</p>
@@ -101,6 +108,7 @@
 
         <!-- Trigger button -->
         <button type="button" id="monthPickerTrigger" onclick="toggleMonthPicker()"
+          aria-haspopup="dialog" aria-expanded="false" aria-controls="monthPickerDropdown"
           class="month-picker-trigger">
           <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -116,7 +124,7 @@
         <span id="monthStatusBadge" class="month-status-badge month-status-hidden"></span>
 
         <!-- Dropdown picker -->
-        <div id="monthPickerDropdown" class="month-picker-dropdown hidden">
+        <div id="monthPickerDropdown" role="dialog" aria-label="Seleziona mese" class="month-picker-dropdown hidden">
           <!-- Header anno -->
           <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100">
             <button type="button" onclick="changePickerYear(-1)" class="month-picker-nav">&#8249;</button>
@@ -135,12 +143,12 @@
     </div>
     <form id="entryForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8 relative z-10">
       <div id="accountInputsContainer" class="contents"></div>
-      <div class="md:col-span-2 lg:col-span-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm relative focus-within:ring-2 focus-within:ring-indigo-100 transition-all mt-2 dark:bg-slate-700 dark:border-slate-600">
-        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Note e Spese Extra (Opzionale)</label>
+      <div class="md:col-span-2 lg:col-span-3 account-card mt-2">
+        <label for="inputNote" class="block text-xs font-bold text-gray-500 uppercase mb-1">Note e Spese Extra (Opzionale)</label>
         <input type="text" id="inputNote" placeholder="Es. Assicurazione auto, dentista..." class="w-full text-sm text-gray-800 focus:outline-none border-b border-transparent focus:border-indigo-500 transition-colors bg-transparent py-2">
       </div>
     </form>
-    <div class="flex justify-center pt-6 border-t-2 border-indigo-100/60 relative z-10">
+    <div class="entry-footer">
       <button type="button" id="saveBtn" onclick="saveData()" class="btn-cta-save btn-base group">
         <span id="saveBtnIcon" class="flex items-center"><svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></span>
         <span id="saveBtnText">Salva e Sincronizza</span>
@@ -149,11 +157,11 @@
   </div>
 
   <!-- Modal Budget -->
-  <div id="budgetModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4" onclick="handleBudgetBackdrop(event)">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
+  <div id="budgetModal" role="dialog" aria-modal="true" aria-labelledby="budgetModalTitle" class="modal fixed inset-0 z-50 items-center justify-center p-4" onclick="handleBudgetBackdrop(event)">
+    <div class="modal-panel rounded-xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center mb-1">
-        <h3 class="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">🎯 Soglie Budget</h3>
-        <button onclick="closeBudgetModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        <h3 id="budgetModalTitle" class="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">🎯 Soglie Budget</h3>
+        <button onclick="closeBudgetModal()" aria-label="Chiudi" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
       </div>
       <p class="text-xs text-gray-500 mb-4">Mese: <span class="font-bold text-indigo-600" id="budgetModalMonth"></span> — Soglia minima per conto (0 = nessuna soglia)</p>
       <div id="budgetInputsContainer" class="mb-5"></div>
@@ -165,28 +173,28 @@
   </div>
 
   <!-- Modale Aggiungi Conto -->
-  <div id="addAccountModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4" onclick="handleAddAccountBackdrop(event)">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+  <div id="addAccountModal" role="dialog" aria-modal="true" aria-labelledby="addAccountTitle" class="modal fixed inset-0 z-50 items-center justify-center p-4" onclick="handleAddAccountBackdrop(event)">
+    <div class="modal-panel rounded-xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-bold text-gray-800 dark:text-white">+ Nuovo Conto</h3>
-        <button onclick="closeAddAccountModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        <h3 id="addAccountTitle" class="text-lg font-bold text-gray-800 dark:text-white">+ Nuovo Conto</h3>
+        <button onclick="closeAddAccountModal()" aria-label="Chiudi" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
       </div>
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1">Nome conto</label>
+          <label for="newAccountName" class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1">Nome conto</label>
           <input type="text" id="newAccountName" placeholder="Es. Trade Republic" class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-slate-700 dark:border-slate-500 dark:text-white">
         </div>
         <div>
-          <label class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Intestatario</label>
-          <div class="flex flex-wrap gap-2" id="addAccountOwner">
+          <label id="addAccountOwnerLabel" class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Intestatario</label>
+          <div class="flex flex-wrap gap-2" id="addAccountOwner" role="radiogroup" aria-labelledby="addAccountOwnerLabel">
             <label class="radio-option"><input type="radio" name="newAccountOwner" value="simone" class="sr-only" checked><div class="radio-content">Simone</div></label>
             <label class="radio-option"><input type="radio" name="newAccountOwner" value="michela" class="sr-only"><div class="radio-content">Michela</div></label>
             <label class="radio-option"><input type="radio" name="newAccountOwner" value="shared" class="sr-only"><div class="radio-content">In comune</div></label>
           </div>
         </div>
         <div>
-          <label class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Tipo</label>
-          <div class="flex flex-wrap gap-2" id="addAccountType">
+          <label id="addAccountTypeLabel" class="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Tipo</label>
+          <div class="flex flex-wrap gap-2" id="addAccountType" role="radiogroup" aria-labelledby="addAccountTypeLabel">
             <label class="radio-option"><input type="radio" name="newAccountType" value="liquidity" class="sr-only" checked><div class="radio-content">CC / Conto</div></label>
             <label class="radio-option"><input type="radio" name="newAccountType" value="savings" class="sr-only"><div class="radio-content">Risparmio</div></label>
           </div>
@@ -200,19 +208,20 @@
   </div>
 
   <!-- Modale Calcolatrice -->
-  <div id="calcModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4" onclick="handleModalBackdrop(event)">
-    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-bold text-gray-800" id="calcModalTitle">Calcolatrice</h3>
-        <button onclick="closeCalculator()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+  <div id="calcModal" role="dialog" aria-modal="true" aria-labelledby="calcModalTitle" class="modal fixed inset-0 z-50 items-center justify-center p-4" onclick="handleModalBackdrop(event)">
+    <div class="modal-panel rounded-2xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-start gap-3 mb-5">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-white leading-snug" id="calcModalTitle">Calcolatrice</h3>
+        <button onclick="closeCalculator()" aria-label="Chiudi" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
       </div>
       <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-600 mb-1">Valore Attuale:</label>
-        <div class="text-2xl font-mono text-indigo-900 bg-gray-50 p-3 rounded border border-gray-200" id="calcCurrentValue">0,00 €</div>
+        <span class="block text-xs font-bold text-gray-500 uppercase mb-1">Valore attuale</span>
+        <div class="calc-display" id="calcCurrentValue">0,00 €</div>
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-600 mb-1">Aggiungi / Sottrai (usa - per sottrarre):</label>
-        <input type="text" inputmode="decimal" id="calcInputValue" placeholder="es. 235,32 o -50" class="w-full text-xl font-mono p-3 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-slate-700 dark:border-slate-500">
+      <div class="mb-2">
+        <label for="calcInputValue" class="block text-xs font-bold text-gray-500 uppercase mb-1">Aggiungi / sottrai</label>
+        <input type="text" inputmode="decimal" id="calcInputValue" placeholder="es. 235,32 o -50" class="calc-input w-full text-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none">
+        <p class="text-xs text-gray-400 mt-1.5">Usa il segno meno per sottrarre.</p>
       </div>
       <div class="flex gap-3 mt-6">
         <button onclick="closeCalculator()" class="flex-1 btn-base btn-outline" style="height:40px">Annulla</button>
@@ -272,7 +281,7 @@
     <div class="flex justify-between items-center mb-4">
       <div class="flex items-center cursor-pointer group" onclick="toggleHistory()">
         <h2 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors mr-3">Storico Mensile</h2>
-        <button id="toggleHistoryBtn" class="text-gray-400 group-hover:text-indigo-600 transition-colors bg-gray-50 p-1.5 rounded-full pointer-events-none">
+        <button id="toggleHistoryBtn" aria-expanded="false" aria-controls="historyContent" aria-label="Mostra o nascondi lo storico" class="text-gray-400 group-hover:text-indigo-600 transition-colors bg-gray-50 p-1.5 rounded-full pointer-events-none">
           <svg class="w-5 h-5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
       </div>
@@ -284,25 +293,26 @@
       </div>
     </div>
     <div id="historyContent" class="history-content">
-      <div class="overflow-x-auto rounded-lg border border-gray-200">
-        <table class="min-w-full bg-white text-sm">
+      <div class="data-table-wrap hidden lg:block">
+        <table class="data-table min-w-full text-sm">
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs font-semibold tracking-wider">
             <tr>
-              <th class="py-3 px-4 text-left border-b sortable" onclick="sortTable('month')" data-col="month">Mese <span class="sort-icon"></span></th>
+              <th scope="col" class="py-3 px-4 text-left border-b sortable" onclick="sortTable('month')" data-col="month">Mese <span class="sort-icon"></span></th>
               <th id="headerPlaceholder"></th>
-              <th class="py-3 px-4 text-right border-b font-bold text-indigo-700 sortable" onclick="sortTable('total')" data-col="total">Totale <span class="sort-icon"></span></th>
-              <th class="py-3 px-4 text-right border-b no-print">Azioni</th>
+              <th scope="col" class="py-3 px-3 text-right border-b font-bold text-indigo-700 sortable" onclick="sortTable('total')" data-col="total">Totale <span class="sort-icon"></span></th>
+              <th scope="col" class="py-3 px-3 text-right border-b no-print">Azioni</th>
             </tr>
           </thead>
           <tbody id="dataTableBody" class="divide-y divide-gray-100"></tbody>
         </table>
       </div>
+      <div id="mobileHistory" class="mobile-history lg:hidden"></div>
       <div id="emptyState" class="text-center py-12 text-gray-400 hidden">Nessun dato presente.</div>
     </div>
   </div>
 
   <!-- FAB -->
-  <button id="fab" onclick="scrollToForm()" title="Nuova registrazione" class="no-print">
+  <button id="fab" onclick="scrollToForm()" title="Nuova registrazione" aria-label="Vai al form di nuova registrazione" class="no-print">
     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
   </button>
 
