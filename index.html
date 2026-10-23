@@ -236,10 +236,10 @@
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
         <h2 class="text-xl font-bold text-gray-800">Andamento Finanziario</h2>
         <div class="flex bg-gray-100 dark:bg-slate-700 p-1 rounded-full overflow-x-auto max-w-full">
+          <button onclick="setChartMode('overview')"    id="tab-overview"   class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Panoramica</button>
           <button onclick="setChartMode('single')"     id="tab-single"     class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Conti</button>
           <button onclick="setChartMode('type')"       id="tab-type"       class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Tipologia</button>
           <button onclick="setChartMode('aggregated')" id="tab-aggregated" class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Gruppi</button>
-          <button onclick="setChartMode('total')"      id="tab-total"      class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Totale</button>
           <button onclick="setChartMode('variation')"  id="tab-variation"  class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Variazione</button>
           <button onclick="setChartMode('compare')"    id="tab-compare"    class="px-3 py-1.5 text-xs rounded-full transition-all whitespace-nowrap">Confronto Anni</button>
         </div>
@@ -264,7 +264,11 @@
         <canvas id="financeChart"></canvas>
         <button id="resetZoomBtn" onclick="resetChartZoom()" title="Torna alla vista completa">🔍 Reset zoom</button>
       </div>
-      <p class="text-xs text-gray-400 mt-2 text-center">💡 Scorri con la rotella del mouse per zoomare · Trascina per spostarti nel tempo</p>
+      <div id="deltaWrap" class="relative hidden" style="height:92px;margin-top:2px">
+        <canvas id="deltaChart"></canvas>
+      </div>
+      <p id="overviewLegend" class="text-xs text-gray-400 mt-2 text-center hidden"><span class="overview-legend-dot"></span> I pallini indicano mesi con nota · le barre mostrano la variazione mensile</p>
+      <p id="zoomHint" class="text-xs text-gray-400 mt-2 text-center">💡 Scorri con la rotella del mouse per zoomare · Trascina per spostarti nel tempo</p>
     </div>
     <div class="section-card mb-0 flex flex-col">
       <h2 class="text-xl font-bold text-gray-800 mb-2">Composizione Patrimonio</h2>

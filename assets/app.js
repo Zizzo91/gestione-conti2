@@ -275,8 +275,9 @@ const YEAR_COLORS  = ["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6"];
 let appData = [];
 let budgetsData = { thresholds: [] };
 let chartInstance = null;
+let deltaInstance = null;
 let donutInstance = null;
-let currentChartMode = "single";
+let currentChartMode = "overview";
 let currentChartRange = 0;
 let activeCalcInputId = null;
 let selectedChartAccounts = new Set();
@@ -472,7 +473,8 @@ async function startApp() {
   renderDashboard();
   updateLiveTotal();
   updateMonthBadge();
-  setChartRange(0);
+  setChartMode("overview");
+  setChartRange(12);
   fillFormWithEntry(appData.find(d => d.month === monthEl.value) || null);
 }
 
@@ -495,11 +497,17 @@ function escapeHtml(v) {
   return String(v === null || v === undefined ? "" : v).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
 function calcTotal(row) { return ACCOUNTS.reduce((s,a)=>s+(row.values[a.id]||0),0); }
+function fmtAxisEUR(v){
+  return Math.abs(v)>=100000
+    ? makeNumFmt({notation:"compact",style:"currency",currency:"EUR",maximumFractionDigits:1}).format(v)
+    : EUR0_FMT.format(v);
+}
 function makeNumFmt(opts){
   try { return new Intl.NumberFormat("it-IT",{...opts,useGrouping:"always"}); }
   catch(_) { return new Intl.NumberFormat("it-IT",opts); }
 }
 const EUR_FMT  = makeNumFmt({style:"currency",currency:"EUR"});
+const EUR0_FMT = makeNumFmt({style:"currency",currency:"EUR",maximumFractionDigits:0});
 const EUR2_FMT = makeNumFmt({minimumFractionDigits:2});
 function parseCurrency(str) {
   if (str === null || str === undefined) return 0;
@@ -1310,29 +1318,170 @@ function renderDonutChart(){
 }
 
 // ─── LINE CHART ───────────────────────────────────────────────────────────────
+function chartTheme(){
+  const isDark=document.documentElement.classList.contains("dark");
+  const root=getComputedStyle(document.documentElement);
+  return {
+    isDark,
+    grid:isDark?"rgba(255,255,255,.08)":"rgba(0,0,0,.06)",
+    tick:isDark?"#94a3b8":"#6b7280",
+    surface:root.getPropertyValue("--surface").trim()||"#fff",
+    accent:isDark?"#818cf8":(root.getPropertyValue("--accent").trim()||"#4f46e5"),
+    accentFg:isDark?"#111827":"#fff",
+    successBar:isDark?"rgba(52,211,153,.72)":"rgba(16,185,129,.68)",
+    dangerBar:isDark?"rgba(248,113,113,.72)":"rgba(239,68,68,.62)",
+    note:isDark?"#fbbf24":"#f59e0b"
+  };
+}
+function hexToRgba(hex,a){
+  let h=String(hex||"").replace("#","");
+  if(h.length===3) h=h.split("").map(c=>c+c).join("");
+  const n=parseInt(h.slice(0,6),16);
+  if(Number.isNaN(n)) return `rgba(79,70,229,${a})`;
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+const lastValuePlugin={
+  id:"lastValue",
+  afterDatasetsDraw(chart,args,opts){
+    if(!opts||!opts.enabled||!opts.text)return;
+    const meta=chart.getDatasetMeta(0);
+    const point=meta.data[meta.data.length-1];
+    if(!point)return;
+    const {ctx,chartArea}=chart;
+    ctx.save();
+    ctx.font='700 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    const w=ctx.measureText(opts.text).width+18;
+    const cx=Math.min(Math.max(point.x,chartArea.left+w/2),chartArea.right-w/2);
+    const x=cx-w/2;
+    const y=Math.max(point.y-36,chartArea.top-24);
+    ctx.strokeStyle=opts.bg||"#4f46e5";
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,y+24);ctx.lineTo(cx,point.y-6);ctx.stroke();
+    ctx.fillStyle=opts.bg||"#4f46e5";
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,w,24,12); else ctx.rect(x,y,w,24);
+    ctx.fill();
+    ctx.fillStyle=opts.color||"#fff";
+    ctx.textAlign="left";ctx.textBaseline="middle";
+    ctx.fillText(opts.text,x+9,y+12.5);
+    ctx.restore();
+  }
+};
+const eventDotsPlugin={
+  id:"eventDots",
+  afterDatasetsDraw(chart,args,opts){
+    if(!opts||!opts.enabled||!opts.notes)return;
+    const meta=chart.getDatasetMeta(0);
+    const {ctx,chartArea}=chart;
+    ctx.save();
+    opts.notes.forEach((note,i)=>{
+      if(!note)return;
+      const p=meta.data[i];
+      if(!p)return;
+      if(p.x<chartArea.left-2||p.x>chartArea.right+2)return;
+      ctx.beginPath();ctx.arc(p.x,p.y-12,3.8,0,Math.PI*2);
+      ctx.fillStyle=opts.color||"#f59e0b";ctx.fill();
+      ctx.lineWidth=2;ctx.strokeStyle=opts.stroke||"#fff";ctx.stroke();
+    });
+    ctx.restore();
+  }
+};
+function alignDelta(){
+  if(!chartInstance||!deltaInstance||!chartInstance.chartArea)return;
+  const area=chartInstance.chartArea;
+  const left=Math.round(area.left);
+  const right=Math.round(chartInstance.width-area.right);
+  const pad=deltaInstance.options.layout.padding;
+  if(pad.left===left&&pad.right===right)return;
+  pad.left=left;pad.right=right;
+  deltaInstance.update("none");
+}
+function renderDeltaChart(filtered,theme){
+  const canvas=document.getElementById("deltaChart");
+  if(!canvas)return;
+  const labels=filtered.map(d=>d.month);
+  const all=sortByMonth(appData);
+  const deltas=filtered.map((d,i)=>{
+    if(i===0)return null;
+    const idx=all.findIndex(x=>x.month===d.month);
+    if(idx<=0)return null;
+    return ACCOUNTS.reduce((s,a)=>s+(d.values[a.id]||0)-(all[idx-1].values[a.id]||0),0)/100;
+  });
+  const maxAbs=Math.max(1,...deltas.filter(v=>v!==null).map(v=>Math.abs(v)));
+  const lim=Math.ceil(maxAbs*1.1/100)*100;
+  if(!deltaInstance){
+    deltaInstance=new Chart(canvas.getContext("2d"),{
+      type:"bar",
+      data:{labels,datasets:[{data:deltas,backgroundColor:[],borderRadius:3,barPercentage:.7,categoryPercentage:.8}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:false,
+        layout:{padding:{top:8,right:6,bottom:0,left:0}},
+        interaction:{mode:"index",intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            displayColors:false,
+            callbacks:{
+              title(items){const lb=deltaInstance?.data.labels[items[0].dataIndex]||"";return formatMonthLabel(lb);},
+              label(ctx){const v=ctx.parsed.y;if(v===null||v===undefined)return "";return (v>0?"+":"")+EUR_FMT.format(v);}
+            }
+          }
+        },
+        scales:{
+          x:{ticks:{color:theme.tick,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:14},grid:{display:false},border:{display:false}},
+          y:{display:false,min:-lim,max:lim}
+        }
+      }
+    });
+  } else {
+    deltaInstance.options.scales.x.ticks.color=theme.tick;
+    deltaInstance.options.scales.y.min=-lim;
+    deltaInstance.options.scales.y.max=lim;
+    deltaInstance.data.labels=labels;
+    deltaInstance.data.datasets[0].data=deltas;
+  }
+  deltaInstance.data.datasets[0].backgroundColor=deltas.map(v=>v===null?"transparent":v>=0?theme.successBar:theme.dangerBar);
+  deltaInstance.update("none");
+  requestAnimationFrame(alignDelta);
+}
 function setChartMode(mode){
   currentChartMode=mode;
-  ["single","type","aggregated","total","variation","compare"].forEach(m=>{
+  ["overview","single","type","aggregated","variation","compare"].forEach(m=>{
     const btn=document.getElementById("tab-"+m);
     if(btn) btn.className=m===mode?"px-3 py-1.5 text-xs rounded-full bg-indigo-600 text-white shadow-sm":"px-3 py-1.5 text-xs rounded-full text-gray-600 hover:bg-white dark:text-gray-300";
   });
-  document.getElementById("chartFilterContainer").style.display=mode==="single"?"flex":"none";
+  const filter=document.getElementById("chartFilterContainer");
+  if(filter) filter.style.display=mode==="single"?"flex":"none";
   updateChart();
 }
 function updateChart(){
-  const isDark=document.documentElement.classList.contains("dark");
-  const gridColor=isDark?"rgba(255,255,255,.08)":"rgba(0,0,0,.06)";
-  const tickColor=isDark?"#94a3b8":"#6b7280";
+  const theme=chartTheme();
   const filtered=getFilteredData();
   const labels=filtered.map(d=>d.month);
+  const isOverview=currentChartMode==="overview";
+  const deltaWrap=document.getElementById("deltaWrap");
+  const overviewLegend=document.getElementById("overviewLegend");
+  const zoomHint=document.getElementById("zoomHint");
+  if(deltaWrap) deltaWrap.classList.toggle("hidden", !isOverview || labels.length<2);
+  if(overviewLegend) overviewLegend.classList.toggle("hidden", !isOverview);
+  if(zoomHint) zoomHint.classList.toggle("hidden", isOverview);
+  if(isOverview && isZoomed && chartInstance){
+    try{chartInstance.resetZoom();}catch(_){}
+    isZoomed=false;
+    const rb=document.getElementById("resetZoomBtn");
+    if(rb) rb.style.display="none";
+  }
   if(!chartInstance){
     chartInstance=new Chart(document.getElementById("financeChart").getContext("2d"),{
       type:"line",data:{labels:[],datasets:[]},
+      plugins:[lastValuePlugin,eventDotsPlugin],
       options:{
         responsive:true,maintainAspectRatio:false,
+        layout:{padding:{top:28,right:6}},
         interaction:{mode:"index",intersect:false},
+        onResize(){requestAnimationFrame(alignDelta);},
         plugins:{
-          legend:{position:"bottom",labels:{color:tickColor,usePointStyle:true,pointStyle:"circle",boxWidth:8}},
+          legend:{position:"bottom",labels:{color:theme.tick,usePointStyle:true,pointStyle:"circle",boxWidth:8}},
           tooltip:{callbacks:{
             label(ctx){ return (ctx.dataset.label||"")+": "+EUR_FMT.format(ctx.parsed.y); },
             footer(items){const note=filtered[items[0].dataIndex]?.note;return note?"\n📌 "+note:"";}
@@ -1343,20 +1492,44 @@ function updateChart(){
           }
         },
         scales:{
-          x:{ticks:{color:tickColor},grid:{color:gridColor}},
-          y:{beginAtZero:true,ticks:{color:tickColor,callback:v=>makeNumFmt({notation:"compact",style:"currency",currency:"EUR"}).format(v)},grid:{color:gridColor}}
+          x:{ticks:{color:theme.tick},grid:{color:theme.grid}},
+          y:{beginAtZero:true,ticks:{color:theme.tick,callback:v=>fmtAxisEUR(v)},grid:{color:theme.grid}}
         }
       }
     });
   }
   const opts=chartInstance.options;
-  opts.plugins.legend.labels.color=tickColor;
-  opts.scales.x.ticks.color=tickColor; opts.scales.x.grid.color=gridColor;
-  opts.scales.y.ticks.color=tickColor; opts.scales.y.grid.color=gridColor;
-  const isStacked=["type","aggregated"].includes(currentChartMode);
+  opts.plugins.legend.display=!isOverview;
+  opts.layout.padding.top=isOverview?28:4;
+  opts.plugins.legend.labels.color=theme.tick;
+  opts.scales.x.ticks.color=theme.tick; opts.scales.x.grid.color=theme.grid;
+  opts.scales.y.ticks.color=theme.tick; opts.scales.y.grid.color=theme.grid;
+  opts.scales.x.ticks.display=!isOverview;
+  opts.scales.x.grid.display=!isOverview;
+  opts.scales.y.beginAtZero=!isOverview;
+  opts.plugins.zoom.pan.enabled=!isOverview;
+  opts.plugins.zoom.zoom.wheel.enabled=!isOverview;
+  opts.plugins.zoom.zoom.pinch.enabled=!isOverview;
+  const isStacked=currentChartMode==="type";
   opts.scales.x.stacked=isStacked; opts.scales.y.stacked=isStacked;
+  const totals=filtered.map(d=>ACCOUNTS.reduce((s,a)=>s+(d.values[a.id]||0),0)/100);
+  opts.plugins.lastValue={enabled:isOverview&&totals.length>0,text:totals.length?EUR0_FMT.format(totals[totals.length-1]):"",bg:theme.accent,color:theme.accentFg};
+  opts.plugins.eventDots={enabled:isOverview,notes:filtered.map(d=>d.note||""),color:theme.note,stroke:theme.surface};
+  opts.plugins.tooltip.callbacks.title=isOverview?items=>formatMonthLabel(filtered[items[0].dataIndex]?.month||""):items=>String(chartInstance.data.labels[items[0].dataIndex]??"");
+  opts.plugins.tooltip.callbacks.label=ctx=>isOverview?EUR_FMT.format(ctx.parsed.y):(ctx.dataset.label||"")+": "+EUR_FMT.format(ctx.parsed.y);
+  opts.plugins.tooltip.callbacks.footer=currentChartMode==="compare"?()=>"":items=>{const note=filtered[items[0].dataIndex]?.note;return note?"\n📌 "+note:"";};
   let datasets=[];
-  if(currentChartMode==="single"){
+  if(isOverview){
+    datasets.push({label:"Patrimonio netto",data:totals,borderColor:theme.accent,
+      backgroundColor:(c)=>{
+        const area=c.chart.chartArea;if(!area)return "transparent";
+        const g=c.chart.ctx.createLinearGradient(0,area.top,0,area.bottom);
+        g.addColorStop(0,hexToRgba(theme.accent,.22));
+        g.addColorStop(1,hexToRgba(theme.accent,0));
+        return g;
+      },
+      fill:true,tension:.35,borderWidth:3,pointRadius:3,pointHoverRadius:6,pointBackgroundColor:theme.accent,pointBorderColor:theme.surface,pointBorderWidth:2});
+  } else if(currentChartMode==="single"){
     ACCOUNTS.filter(a=>selectedChartAccounts.has(a.id)).forEach(acc=>{
       datasets.push({label:acc.label,data:filtered.map(d=>(d.values[acc.id]||0)/100),borderColor:acc.color,backgroundColor:acc.color+"22",fill:false,tension:0.35,borderWidth:2.5,pointRadius:filtered.length<=12?4:2,pointHoverRadius:6,pointBackgroundColor:acc.color});
     });
@@ -1365,11 +1538,11 @@ function updateChart(){
     datasets.push({label:"Liquidità (CC)",data:mk("liquidity"),borderColor:"#64748b",backgroundColor:"rgba(100,116,139,.15)",fill:true,tension:.4});
     datasets.push({label:"Risparmio",data:mk("savings"),borderColor:"#10b981",backgroundColor:"rgba(16,185,129,.15)",fill:true,tension:.4});
   } else if(currentChartMode==="aggregated"){
-    [{name:"Totale Simone",owner:"simone",color:"#8b5cf6"},{name:"Totale Michela",owner:"michela",color:"#f97316"}].forEach(g=>{
-      datasets.push({label:g.name,data:filtered.map(d=>ACCOUNTS.filter(a=>a.owner===g.owner).reduce((s,a)=>s+(d.values[a.id]||0)/100,0)),borderColor:g.color,backgroundColor:g.color+"26",fill:true,tension:.4});
+    [{name:"Totale Simone",owner:"simone",color:"#8b5cf6"},{name:"Totale Michela",owner:"michela",color:"#f97316"},{name:"Comune",owner:"shared",color:"#14b8a6"}].forEach(g=>{
+      if(!ACCOUNTS.some(a=>a.owner===g.owner))return;
+      datasets.push({label:g.name,data:filtered.map(d=>ACCOUNTS.filter(a=>a.owner===g.owner).reduce((s,a)=>s+(d.values[a.id]||0)/100,0)),borderColor:g.color,backgroundColor:"transparent",fill:false,tension:.4,borderWidth:2.5,pointRadius:filtered.length<=12?3:2,pointHoverRadius:6,pointBackgroundColor:g.color});
     });
-  } else if(currentChartMode==="total"){
-    datasets.push({label:"Patrimonio Netto",data:filtered.map(d=>ACCOUNTS.reduce((s,a)=>s+(d.values[a.id]||0)/100,0)),borderColor:isDark?"#34d399":"#0f766e",backgroundColor:isDark?"rgba(52,211,153,.12)":"rgba(15,118,110,.1)",fill:true,tension:.4,borderWidth:3});
+    datasets.push({label:"Totale",data:totals,borderColor:theme.tick,borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:.4,borderWidth:2,pointRadius:0,pointHoverRadius:4,pointBackgroundColor:theme.tick,order:1});
   } else if(currentChartMode==="variation"){
     const all=sortByMonth(appData);
     const data=filtered.map(d=>{ const idx=all.findIndex(x=>x.month===d.month); if(idx===0)return 0; return ACCOUNTS.reduce((s,a)=>s+(d.values[a.id]||0)-(all[idx-1].values[a.id]||0),0)/100; });
@@ -1387,10 +1560,10 @@ function updateChart(){
     opts.scales.x.stacked=false; opts.scales.y.stacked=false;
     chartInstance.update(); return;
   }
-  chartInstance.options.plugins.tooltip.callbacks.footer=items=>{ const note=filtered[items[0].dataIndex]?.note; return note?"\n📌 "+note:""; };
   chartInstance.data.labels=labels;
   chartInstance.data.datasets=datasets;
   chartInstance.update();
+  if(isOverview) renderDeltaChart(filtered,theme);
 }
 
 // ─── Tastiera fisica durante il login PIN (opzionale: aggiuntiva al tastierino/touch) ─────────
