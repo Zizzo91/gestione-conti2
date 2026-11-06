@@ -1,5 +1,6 @@
 if ('serviceWorker' in navigator)
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {}));
 
 const DEFAULT_ACCOUNTS = [
   { id:"ccasimone",     label:"CC Arancio Simone",    color:"#2563eb", type:"liquidity", owner:"simone" },
@@ -297,12 +298,21 @@ function setModalClass(id, open) {
 // ─── DARK MODE ────────────────────────────────────────────────────────────────
 function applyDarkMode(dark) {
   document.documentElement.classList.toggle("dark", dark);
+  syncThemeColor();
   const icon=document.getElementById("darkToggleIcon");
   if(icon) icon.textContent = dark ? "☀️" : "🌙";
   else { const btn=document.getElementById("darkToggle"); if(btn) btn.textContent = dark ? "☀️" : "🌙"; }
   localStorage.setItem("darkMode", dark ? "1" : "0");
   if (chartInstance) updateChart();
   if (donutInstance) renderDonutChart();
+}
+
+// theme-color segue lo sfondo dell'app: barra di stato coerente in PWA (iOS/Android).
+function syncThemeColor() {
+  const meta = document.getElementById("themeColorMeta");
+  if (!meta) return;
+  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  meta.setAttribute("content", bg || (document.documentElement.classList.contains("dark") ? "#0b1220" : "#f6f7f9"));
 }
 function toggleDarkMode() {
   applyDarkMode(!document.documentElement.classList.contains("dark"));

@@ -7,15 +7,17 @@ Progressive Web App per la gestione dei conti personali con sincronizzazione clo
 ```
 gestione-conti-main/
 ├── index.html                    — UI principale (Tailwind, Chart.js); schermata login PIN
-├── manifest.json                 — PWA manifest
-├── sw.js                         — Service Worker
+├── manifest.json                 — PWA manifest (id/scope/start_url, icone locali, shortcut)
+├── sw.js                         — Service Worker: network-first sul guscio, cache offline
 ├── config/
 │   └── supabase-config.js        — window.SUPABASE_CONFIG {url, anonKey, pinEmail} (pubblico, committato)
 ├── assets/
 │   ├── app.js                    — Logica principale (auth Supabase + REST Postgres)
-│   └── style.css                 — Stili custom + dark mode + month picker + numpad PIN
+│   ├── style.css                 — Stili custom + dark mode + month picker + numpad PIN
+│   └── icons/                    — Icone PWA generate (192/512 any + maskable, apple 180, favicon)
 ├── script/
-│   └── seed_supabase.py          — Seed/ripristino dati da JSON locale (usa service_role)
+│   ├── seed_supabase.py          — Seed/ripristino dati da JSON locale (usa service_role)
+│   └── generate_icons.py         — Rigenera assets/icons/ (Pillow, nessun'altra dipendenza)
 ├── supabase/
 │   ├── migrations/               — 0001 init schema + RLS, 0002 keepalive anon
 │   └── config.toml               — Config CLI
@@ -45,6 +47,9 @@ gestione-conti-main/
 - Sincronizzazione dati/conti/soglie via REST PostgREST (`/rest/v1/...`) con `Authorization: Bearer <access_token>`
 
 ## Note operative
+- **PWA / Service Worker**: `sw.js` usa network-first solo per le richieste same-origin del guscio (HTML, CSS, JS, icone, manifest) e mette in cache la risposta buona solo come fallback offline. Le richieste cross-origin (Supabase REST/Auth, CDN Tailwind/Chart.js) non vengono mai intercettate né cacheate, così i dati restano sempre freschi. Per invalidare la cache al deploy cambiare `VERSION` in `sw.js`.
+- **Icone**: `assets/icons/` è generato da `script/generate_icons.py` (gradiente indigo + €). Non modificare i PNG a mano: rigenerarli dallo script.
+- **theme-color**: il meta `themeColorMeta` è aggiornato da `syncThemeColor()` in `applyDarkMode()` e segue `--bg` (chiaro/scuro); anche `manifest.json` usa `#f6f7f9`.
 - Keepalive generico: le Actions variables del repo `SUPABASE_URL` e `SUPABASE_ANON_KEY` vanno impostate su GitHub (Settings → Secrets and variables → Actions → Variables), altrimenti il workflow si salta con un warning.
 - `script/seed_supabase.py` legge i JSON locali (gitignored) e li upserta con la `service_role` key.
 - I grafici in modalità "Gruppi" usano il campo `owner` (simone/michela/shared).

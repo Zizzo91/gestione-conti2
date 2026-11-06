@@ -1,15 +1,55 @@
 {
+  "id": "./",
   "name": "Gestione Conti",
   "short_name": "Conti",
-  "start_url": "./index.html",
+  "description": "Gestione dei conti personali con sincronizzazione cloud, budget e grafici.",
+  "lang": "it",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f8f9fa",
-  "theme_color": "#4f46e5",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f6f7f9",
+  "theme_color": "#f6f7f9",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nuova registrazione",
+      "short_name": "Nuovo mese",
+      "url": "./#entrySection",
+      "icons": [
+        {
+          "src": "assets/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

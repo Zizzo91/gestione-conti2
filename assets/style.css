@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-2: #f8fafc;
@@ -24,6 +25,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --bg: #0b1220;
   --surface: #111a2b;
   --surface-2: #0e1626;
@@ -46,6 +48,8 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) calc(5.5rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   transition: background .3s, color .3s;
