@@ -46,10 +46,21 @@ gestione-conti-main/
 - RLS: solo ruolo `authenticated` legge/scrive; l'anon può leggere solo `entries.month` (policy `using(false)`: 200 senza dati) per il keepalive
 - Sincronizzazione dati/conti/soglie via REST PostgREST (`/rest/v1/...`) con `Authorization: Bearer <access_token>`
 
+## Design system (rebrand "Apple measured")
+Palette e superfici derivano dallo studio in `../reverse-brand/out/www.apple.com/` (tokens misurati sul sito Apple). Tutto vive in `assets/style.css` come token CSS; non ci sono immagini di sfondo: gli wallpaper sono gradienti CSS.
+
+- **Token** (`:root` / `.dark`): `--bg`, `--surface*`, `--border*`, `--text*`, `--accent` (`#0071e3` chiaro / `#0a84ff` scuro), `--success`, `--danger`, `--warning`, `--radius` 22px, `--btn-radius` 980px (pillole), `--glass`.
+- **Sfondi aurora**: layer fisso `.aurora` (in `index.html`, `z-index:-1`) con radial-gradient giallo `#fdd30f` → ciano `#90ceee` → blu `#2789ff` su base chiara `#fbfbfd` / nera `#000`. Stessa famiglia di gradienti sul backdrop del login (`#loginScreen`), che resta scuro in entrambi i temi.
+- **Componenti**: header sticky in vetro (`backdrop-filter`), card `--radius` 22px, eroe patrimonio `.hero-card` (card aurora scura), widget `.widget-card`, pulsanti a pillola, icon-button circolari, tabella con header uppercase.
+- **Tipografia**: stack di sistema Apple (`-apple-system`, `SF Pro Text/Display`), letter-spacing negativo sui titoli.
+- **Grafici**: colori Chart.js da `chartTheme()` in `app.js` (palette iOS: blu/verde/arancio/rosso/viola); `YEAR_COLORS` e i colori owner sono allineati.
+- **Icone PWA**: tessera nera + "€" nel gradiente brand (giallo→ciano→blu), rigenerate da `script/generate_icons.py`.
+- **Contrasto**: i testi secondari usano `--text-3`; in dark `--text-2`/`--text-3` sono `#c7c7cc`/`#8e8e93`.
+
 ## Note operative
 - **PWA / Service Worker**: `sw.js` usa network-first solo per le richieste same-origin del guscio (HTML, CSS, JS, icone, manifest) e mette in cache la risposta buona solo come fallback offline. Le richieste cross-origin (Supabase REST/Auth, CDN Tailwind/Chart.js) non vengono mai intercettate né cacheate, così i dati restano sempre freschi. Per invalidare la cache al deploy cambiare `VERSION` in `sw.js`.
-- **Icone**: `assets/icons/` è generato da `script/generate_icons.py` (gradiente indigo + €). Non modificare i PNG a mano: rigenerarli dallo script.
-- **theme-color**: il meta `themeColorMeta` è aggiornato da `syncThemeColor()` in `applyDarkMode()` e segue `--bg` (chiaro/scuro); anche `manifest.json` usa `#f6f7f9`.
+- **Icone**: `assets/icons/` è generato da `script/generate_icons.py` (tessera nera + € nel gradiente brand). Non modificare i PNG a mano: rigenerarli dallo script.
+- **theme-color**: il meta `themeColorMeta` è aggiornato da `syncThemeColor()` in `applyDarkMode()` e segue `--bg` (`#fbfbfd` chiaro / `#000000` scuro); anche `manifest.json` usa `#fbfbfd` (`background_color` nero per lo splash).
 - Keepalive generico: le Actions variables del repo `SUPABASE_URL` e `SUPABASE_ANON_KEY` vanno impostate su GitHub (Settings → Secrets and variables → Actions → Variables), altrimenti il workflow si salta con un warning.
 - `script/seed_supabase.py` legge i JSON locali (gitignored) e li upserta con la `service_role` key.
 - I grafici in modalità "Gruppi" usano il campo `owner` (simone/michela/shared).

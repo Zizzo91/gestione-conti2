@@ -271,7 +271,7 @@ function showLoginScreen() {
 }
 
 const MONTH_NUMS   = ["01","02","03","04","05","06","07","08","09","10","11","12"];
-const YEAR_COLORS  = ["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6"];
+const YEAR_COLORS  = ["#0071e3","#30d158","#ff9f0a","#ff453a","#bf5af2"];
 
 let appData = [];
 let budgetsData = { thresholds: [] };
@@ -312,7 +312,7 @@ function syncThemeColor() {
   const meta = document.getElementById("themeColorMeta");
   if (!meta) return;
   const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-  meta.setAttribute("content", bg || (document.documentElement.classList.contains("dark") ? "#0b1220" : "#f6f7f9"));
+  meta.setAttribute("content", bg || (document.documentElement.classList.contains("dark") ? "#000000" : "#fbfbfd"));
 }
 function toggleDarkMode() {
   applyDarkMode(!document.documentElement.classList.contains("dark"));
@@ -558,7 +558,7 @@ function formatDiff(val) {
   return `<span class="font-bold ${cls}">${sign}${formatCurrency(val)}</span>`;
 }
 function makeWidget(colorClass, title, subtitle, valueHtml, extraHtml="") {
-  return `<div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 border-l-4 ${colorClass}">
+  return `<div class="widget-card p-5 border-l-4 ${colorClass}">
     <p class="text-xs text-gray-500 uppercase font-bold mb-1">${title}</p>
     <p class="text-[11px] text-gray-400 font-medium mb-1">${subtitle}</p>
     <h3 class="text-xl mt-1">${valueHtml}</h3>${extraHtml}</div>`;
@@ -792,15 +792,15 @@ function renderDashboard() {
   const sparkSvg=buildSparkline(sparkData, currTotal>prevTotal||prev===null);
   const trendArrow = prev ? buildTrendArrow(currTotal, prevTotal) : "";
   dashEl.innerHTML=`
-    <div class="bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-800 border-l-4 border-l-emerald-500 relative overflow-hidden lg:col-span-2">
-      <div class="absolute bottom-0 right-0 opacity-20">${sparkSvg}</div>
-      <p class="text-xs text-slate-400 uppercase font-bold mb-1">Patrimonio (${escapeHtml(titleMonth)})</p>
+    <div class="hero-card p-5 lg:col-span-2">
+      <div class="absolute bottom-0 right-0 opacity-30">${sparkSvg}</div>
+      <p class="hero-kicker text-xs uppercase font-bold mb-1">Patrimonio (${escapeHtml(titleMonth)})</p>
       <div class="flex items-center gap-3 flex-wrap">
-        <h3 class="text-3xl font-black text-white">${formatCurrency(currTotal)}</h3>
+        <h3 class="text-3xl font-black text-white tracking-tight">${formatCurrency(currTotal)}</h3>
         ${trendArrow}
       </div>
       ${missingNote}
-      <p class="text-xs text-slate-500 mt-2">Trend ultimi mesi</p>
+      <p class="hero-note text-xs mt-2">Trend ultimi mesi</p>
     </div>
     ${makeWidget("border-l-amber-400","Anno in corso (YTD)",escapeHtml(ytdSub),
       diffYTD!==null?`${formatDiff(diffYTD)}${ytdPercStr}`:`<span class="text-gray-400 text-sm">Dati insufficienti</span>`)}
@@ -831,7 +831,7 @@ function buildSparkline(data, positive=true) {
     const y=H-pad-((v-min)/range)*(H-pad*2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
-  const color=positive?"#34d399":"#f87171";
+  const color=positive?"rgba(255,255,255,.85)":"#ff9f0a";
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
@@ -1040,7 +1040,7 @@ function addNewAccount() {
     counter++;
     uniqueId = id + counter;
   }
-  const ownerColors = { simone:"#10b981", michela:"#f59e0b", shared:"#f97316" };
+  const ownerColors = { simone:"#0a84ff", michela:"#bf5af2", shared:"#30d158" };
   const newAccount = { id:uniqueId, label:name, color:ownerColors[owner]||"#6b7280", type:type, owner:owner };
   const deleted = getDeletedAccountIds();
   if (deleted.delete(uniqueId)) localStorage.setItem("financeApp_deletedAccounts", JSON.stringify([...deleted]));
@@ -1207,7 +1207,7 @@ function renderMobileHistory(){
     const accHtml=shown.map(({acc,v})=>{
       const thresh=Math.round((thresholds[acc.id]||0)*100);
       const alert=thresh>0&&v<thresh;
-      const color=/^#[0-9a-f]{3,8}$/i.test(acc.color||"")?acc.color:"#64748b";
+      const color=/^#[0-9a-f]{3,8}$/i.test(acc.color||"")?acc.color:"#8e8e93";
       return `<div class="month-card-acc"><span class="month-card-dot" style="background-color:${color}"></span><span>${escapeHtml(acc.label)}</span><b class="${alert?'text-red-500':''}">${formatCurrency(v)}</b></div>`;
     }).join("")+(rest>0?`<div class="month-card-acc"><span class="month-card-dot" style="background:var(--border-strong)"></span><span>+${rest} altri</span></div>`:"");
     const deltaHtml=diff===null?"":`<p class="month-card-delta ${diff>=0?'up':'down'}">${diff>=0?"+":""}${formatCurrency(diff)} vs mese prec.</p>`;
@@ -1334,20 +1334,20 @@ function chartTheme(){
   return {
     isDark,
     grid:isDark?"rgba(255,255,255,.08)":"rgba(0,0,0,.06)",
-    tick:isDark?"#94a3b8":"#6b7280",
+    tick:isDark?"#8e8e93":"#6e6e73",
     surface:root.getPropertyValue("--surface").trim()||"#fff",
-    accent:isDark?"#818cf8":(root.getPropertyValue("--accent").trim()||"#4f46e5"),
+    accent:isDark?"#0a84ff":(root.getPropertyValue("--accent").trim()||"#0071e3"),
     accentFg:isDark?"#111827":"#fff",
-    successBar:isDark?"rgba(52,211,153,.72)":"rgba(16,185,129,.68)",
-    dangerBar:isDark?"rgba(248,113,113,.72)":"rgba(239,68,68,.62)",
-    note:isDark?"#fbbf24":"#f59e0b"
+    successBar:isDark?"rgba(48,209,88,.78)":"rgba(36,138,61,.62)",
+    dangerBar:isDark?"rgba(255,69,58,.78)":"rgba(215,0,21,.55)",
+    note:isDark?"#ffd60a":"#ff9f0a"
   };
 }
 function hexToRgba(hex,a){
   let h=String(hex||"").replace("#","");
   if(h.length===3) h=h.split("").map(c=>c+c).join("");
   const n=parseInt(h.slice(0,6),16);
-  if(Number.isNaN(n)) return `rgba(79,70,229,${a})`;
+  if(Number.isNaN(n)) return `rgba(0,113,227,${a})`;
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
 const lastValuePlugin={
@@ -1364,10 +1364,10 @@ const lastValuePlugin={
     const cx=Math.min(Math.max(point.x,chartArea.left+w/2),chartArea.right-w/2);
     const x=cx-w/2;
     const y=Math.max(point.y-36,chartArea.top-24);
-    ctx.strokeStyle=opts.bg||"#4f46e5";
+    ctx.strokeStyle=opts.bg||"#0071e3";
     ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(cx,y+24);ctx.lineTo(cx,point.y-6);ctx.stroke();
-    ctx.fillStyle=opts.bg||"#4f46e5";
+    ctx.fillStyle=opts.bg||"#0071e3";
     ctx.beginPath();
     if(ctx.roundRect) ctx.roundRect(x,y,w,24,12); else ctx.rect(x,y,w,24);
     ctx.fill();
@@ -1545,10 +1545,10 @@ function updateChart(){
     });
   } else if(currentChartMode==="type"){
     const mk=t=>filtered.map(d=>ACCOUNTS.filter(a=>a.type===t).reduce((s,a)=>s+(d.values[a.id]||0)/100,0));
-    datasets.push({label:"Liquidità (CC)",data:mk("liquidity"),borderColor:"#64748b",backgroundColor:"rgba(100,116,139,.15)",fill:true,tension:.4});
-    datasets.push({label:"Risparmio",data:mk("savings"),borderColor:"#10b981",backgroundColor:"rgba(16,185,129,.15)",fill:true,tension:.4});
+    datasets.push({label:"Liquidità (CC)",data:mk("liquidity"),borderColor:theme.isDark?"#8e8e93":"#6e6e73",backgroundColor:"rgba(142,142,147,.15)",fill:true,tension:.4});
+    datasets.push({label:"Risparmio",data:mk("savings"),borderColor:theme.isDark?"#30d158":"#248a3d",backgroundColor:"rgba(48,209,88,.15)",fill:true,tension:.4});
   } else if(currentChartMode==="aggregated"){
-    [{name:"Totale Simone",owner:"simone",color:"#8b5cf6"},{name:"Totale Michela",owner:"michela",color:"#f97316"},{name:"Comune",owner:"shared",color:"#14b8a6"}].forEach(g=>{
+    [{name:"Totale Simone",owner:"simone",color:"#0a84ff"},{name:"Totale Michela",owner:"michela",color:"#bf5af2"},{name:"Comune",owner:"shared",color:"#30d158"}].forEach(g=>{
       if(!ACCOUNTS.some(a=>a.owner===g.owner))return;
       datasets.push({label:g.name,data:filtered.map(d=>ACCOUNTS.filter(a=>a.owner===g.owner).reduce((s,a)=>s+(d.values[a.id]||0)/100,0)),borderColor:g.color,backgroundColor:"transparent",fill:false,tension:.4,borderWidth:2.5,pointRadius:filtered.length<=12?3:2,pointHoverRadius:6,pointBackgroundColor:g.color});
     });
