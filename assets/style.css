@@ -1288,3 +1288,29 @@ body .border-green-200 { border-color: rgba(48,209,88,.30); }
 @media (max-width: 767px) {
   .app-actions { width: 100%; justify-content: flex-end; }
 }
+
+/* ── Sfondo illustrato: carte, monete, crescita (tema invariato) ────────── */
+.finance-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url("finance-bg.svg") right -90px top -50px / min(1150px, 125vw) auto no-repeat;
+  opacity: .55;
+}
+.dark .finance-bg { opacity: .68; }
+@media (max-width: 767px) {
+  .finance-bg {
+    background-position: right -230px top 130px;
+    background-size: 820px auto;
+    opacity: .40;
+  }
+  .dark .finance-bg { opacity: .50; }
+}
+@media print {
+  .finance-bg { display: none !important; }
+}
+
+/* ── Segmented control / pill attive: sempre accento Apple ──────────────── */
+body .bg-indigo-600 { background-color: var(--accent); }
+body .border-indigo-400 { border-color: var(--border-strong); }

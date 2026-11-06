@@ -14,6 +14,7 @@ gestione-conti-main/
 ├── assets/
 │   ├── app.js                    — Logica principale (auth Supabase + REST Postgres)
 │   ├── style.css                 — Stili custom + dark mode + month picker + numpad PIN
+│   ├── finance-bg.svg            — Illustrazione di sfondo (carte, monete, crescita)
 │   └── icons/                    — Icone PWA generate (192/512 any + maskable, apple 180, favicon)
 ├── script/
 │   ├── seed_supabase.py          — Seed/ripristino dati da JSON locale (usa service_role)
@@ -51,6 +52,8 @@ Palette e superfici derivano dallo studio in `../reverse-brand/out/www.apple.com
 
 - **Token** (`:root` / `.dark`): `--bg`, `--surface*`, `--border*`, `--text*`, `--accent` (`#0071e3` chiaro / `#0a84ff` scuro), `--success`, `--danger`, `--warning`, `--radius` 22px, `--btn-radius` 980px (pillole), `--glass`.
 - **Sfondi aurora**: layer fisso `.aurora` (in `index.html`, `z-index:-1`) con radial-gradient giallo `#fdd30f` → ciano `#90ceee` → blu `#2789ff` su base chiara `#fbfbfd` / nera `#000`. Stessa famiglia di gradienti sul backdrop del login (`#loginScreen`), che resta scuro in entrambi i temi.
+- **Sfondo illustrato**: layer fisso `.finance-bg` (`assets/finance-bg.svg`, SVG vettoriale) con carte, monete e linea di crescita in gradiente brand; opacità bassa (`.55` light / `.68` dark) per non alterare il tema. Su mobile è ridotto e spostato.
+- **Grafici stile iOS**: `applyChartDefaults()` in `app.js` imposta font SF, animazione 650 ms easeOutQuart; `chartTooltipStyle()` dà tooltip a pillola (angoli 14px, bordo tenue, punto colorato). Griglie verticali assenti, orizzontali quasi invisibili; linee senza punti (solo hover), aree con gradiente, barre arrotondate (`borderRadius`), donut con `cutout 72%`, spacing e hover offset.
 - **Componenti**: header sticky in vetro (`backdrop-filter`), card `--radius` 22px, eroe patrimonio `.hero-card` (card aurora scura), widget `.widget-card`, pulsanti a pillola, icon-button circolari, tabella con header uppercase.
 - **Tipografia**: stack di sistema Apple (`-apple-system`, `SF Pro Text/Display`), letter-spacing negativo sui titoli.
 - **Grafici**: colori Chart.js da `chartTheme()` in `app.js` (palette iOS: blu/verde/arancio/rosso/viola); `YEAR_COLORS` e i colori owner sono allineati.
